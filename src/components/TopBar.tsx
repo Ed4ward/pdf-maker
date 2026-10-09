@@ -3,6 +3,7 @@ import {
   Download,
   FolderOpen,
   ImagePlus,
+  Languages,
   Plus,
   RotateCcw,
   Trash2,
@@ -108,14 +109,20 @@ export default function TopBar({
           <BrandMark className="size-8 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
           <span className="text-[15px] font-semibold">PDF编辑器</span>
         </div>
-        <button
-          data-action="toggle-locale"
-          title="Language / 语言"
-          onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
-          className="cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900"
-        >
-          {t("lang.toggle")}
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              data-action="toggle-locale"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
+            >
+              <Languages />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Language / 语言</TooltipContent>
+        </Tooltip>
       </div>
       {/* 第二行:操作按钮居中,放不下时横向滑动 */}
       <div className="scrollbar-none mx-auto flex w-max items-center gap-0.5 overflow-x-auto px-2 pb-1.5 md:gap-1.5">
