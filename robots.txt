@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ed4ward.github.io/pdf-maker/sitemap.xml
