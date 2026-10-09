@@ -41,24 +41,26 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
                  或注入 DragEvent(dispatchEvent,携带 DataTransfer)
 6. delete-page   click → 删除当前页(其替换图与文字框一并移除),会弹出 confirm
                  二次确认(headless 可用 dialog 自动接受);仅剩一页时按钮禁用;⌘Z 可恢复
-7. fit-contain   click → 替换图改为"适应"(完整放入,白底补空,不裁切)
-8. fit-cover     click → 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
-9. replace-scale input[type=range] min0.5 max3 step0.05,值为相对 contain/cover
+7. toggle-locale click → 切换界面语言 中文 ↔ English(顶栏右侧;localStorage 持久化,
+                 默认跟随浏览器语言);所有界面文案、toast 与 confirm 均随语言切换
+8. fit-contain   click → 替换图改为"适应"(完整放入,白底补空,不裁切)
+9. fit-cover     click → 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
+10. replace-scale input[type=range] min0.5 max3 step0.05,值为相对 contain/cover
                  基准的倍率;pointerup / keyup / blur 时提交并入撤销栈
-10. adjust-reset  click → 替换图重置为 contain + 100% + 居中
-11. select-page   click(thumb item,data-page-index="当前顺序位置,0 起")→ 切换当前页;
+11. adjust-reset  click → 替换图重置为 contain + 100% + 居中
+12. select-page   click(thumb item,data-page-index="当前顺序位置,0 起")→ 切换当前页;
                  键盘 ←/→ 亦可;切页会退出对比模式并取消文字选中
-12. toggle-compare click → 预览区原地进入对比模式(再点一次退出),默认左右并排
-13. cmp-side / cmp-slider / cmp-toggle  对比三模式 tab;快捷键 1 / 2 / 3;
+13. toggle-compare click → 预览区原地进入对比模式(再点一次退出),默认左右并排
+14. cmp-side / cmp-slider / cmp-toggle  对比三模式 tab;快捷键 1 / 2 / 3;
     cmp-slider 拖动分隔线逐区域对比;cmp-toggle 按空格或底部胶囊按钮翻转前后;
     cmp-exit 或 Esc 退出对比
-14. text-font-dec / text-font-inc  选中文字框后可用;字号 ×0.8 / ×1.25(上限0.3、下限0.02)
-15. text-color   data-color="#1e293b|#2563eb|#dc2626|#ffffff" 四个色点,click 换色
-16. text-delete  click 删除选中文字框;选中态下按 Delete / Backspace 同效
-17. zoom-in / zoom-out / zoom-reset  页面视图缩放(0.25~3 倍,reset=适应窗口100%)
-18. undo         click 或 ⌘Z;快照式撤销,覆盖页面增删排序/图片替换/排版调整/文字增删改
-19. revert-page  click → 移除当前页的图片替换(文字框不受影响)
-20. export-pdf   click → 按当前页面顺序重建文档并浏览器下载「<原文件名>-替换版.pdf」
+15. text-font-dec / text-font-inc  选中文字框后可用;字号 ×0.8 / ×1.25(上限0.3、下限0.02)
+16. text-color   data-color="#1e293b|#2563eb|#dc2626|#ffffff" 四个色点,click 换色
+17. text-delete  click 删除选中文字框;选中态下按 Delete / Backspace 同效
+18. zoom-in / zoom-out / zoom-reset  页面视图缩放(0.25~3 倍,reset=适应窗口100%)
+19. undo         click 或 ⌘Z;快照式撤销,覆盖页面增删排序/图片替换/排版调整/文字增删改
+20. revert-page  click → 移除当前页的图片替换(文字框不受影响)
+21. export-pdf   click → 按当前页面顺序重建文档并浏览器下载「<原文件名>-替换版.pdf」
                  headless 环境请先配置下载目录;无任何编辑时按钮禁用
 
 【拖拽交互(可选路径)】
