@@ -35,6 +35,8 @@
 - 🔒 **100% local** — parsing, editing and export all happen in your browser with
   [pdf.js](https://github.com/mozilla/pdf.js) + [pdf-lib](https://github.com/Hopding/pdf-lib).
   **No file ever leaves your machine.**
+- 📱 **Responsive** — on small screens the toolbar scrolls horizontally and the
+  thumbnail rail becomes a bottom strip, so editing works on phones and tablets.
 - 🌐 **Bilingual UI** — English / 简体中文, one click in the toolbar; follows your
   browser language by default.
 - 🤖 **Agent-friendly** — a complete machine-readable operation guide ships at
