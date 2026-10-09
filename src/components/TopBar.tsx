@@ -2,6 +2,7 @@ import {
   Columns2,
   Download,
   FolderOpen,
+  Github,
   ImagePlus,
   Languages,
   Plus,
@@ -57,6 +58,8 @@ function Group({ children }: { children: ReactNode }) {
   return <div className="flex items-center gap-0.5 px-1">{children}</div>;
 }
 
+const GITHUB_REPO_URL = "https://github.com/Ed4ward/pdf-maker";
+
 interface TopBarProps {
   hasDoc: boolean;
   canRevert: boolean;
@@ -109,20 +112,32 @@ export default function TopBar({
           <BrandMark className="size-8 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
           <span className="text-[15px] font-semibold">PDF编辑器</span>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              data-action="toggle-locale"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
-            >
-              <Languages />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Language / 语言</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                data-action="toggle-locale"
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
+              >
+                <Languages />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Language / 语言</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild data-action="open-github" variant="ghost" size="icon" className="size-8">
+                <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">
+                  <Github />
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{t("topbar.github")}</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
       {/* 第二行:菜单栏(操作按钮,左对齐,放不下时横向滑动) */}
       <div className="flex w-full items-center gap-0.5 overflow-x-auto px-2 py-2 md:gap-1.5">

@@ -33,6 +33,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "topbar.compare.hint": "对比替换前后内容",
     "topbar.export": "导出 PDF",
     "topbar.export.hint": "下载替换后的文件",
+    "topbar.github": "GitHub 仓库",
 
     "empty.drop": "拖拽 PDF 文件到此处",
     "empty.open": "打开 PDF 文件",
@@ -156,6 +157,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "topbar.compare.hint": "Compare before & after",
     "topbar.export": "Export PDF",
     "topbar.export.hint": "Download the edited file",
+    "topbar.github": "GitHub repository",
 
     "empty.drop": "Drop a PDF file here",
     "empty.open": "Open a PDF file",
