@@ -1,0 +1,96 @@
+================================================================================
+PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
+本文件面向自动化 agent / LLM,完整描述本应用的功能、操作方式(稳定选择器)、
+交互语义与验证信号。读完本文件即可在不阅读源码的情况下驱动全部功能。
+================================================================================
+
+【是什么】
+浏览器端 PDF 页面编辑器原型。当前能力:打开 PDF → 新建空白页 / 拖拽缩略图排序 →
+用图片替换指定页(contain/cover、缩放、拖动调位)→ 添加文字框(编辑/移动/字号/颜色)→
+替换前后原地对比 → 撤销 → 导出新 PDF。纯前端实现(pdf.js 渲染 + pdf-lib 导出),无后端。
+
+【运行】
+- 开发服务:npm run dev → http://localhost:5173
+- 生产构建:npm run build && npm run preview(默认 4173)
+- 启动为空状态(无文档):拖入 PDF 文件,或先对隐藏输入 input[accept="application/pdf"]
+  setFiles 打开文档后才能编辑
+- 无持久化:刷新页面即重置全部编辑状态
+
+【DOM 结构与选择器约定】
+- header           顶部工具栏:全部为纯图标按钮,每个按钮带唯一 data-action
+- main section     左侧预览工作区(页面卡片、缩放条、各类悬浮工具条)
+- aside            右侧缩略图面板
+- footer           状态栏
+- 隐藏文件输入:input[accept="application/pdf"](打开 PDF)
+               input[accept="image/*"](替换图片)
+  → agent 可直接对这两个 input 执行 setFileInputFiles / setInputFiles,
+    change 事件会自动触发对应流程(无需点击按钮)
+- 页面文字框:[data-textbox="<id>"](contenteditable 编辑态同元素)
+- 对比模式 tab:[role="tab"][data-action^="cmp-"]
+
+【功能目录:data-action → 操作 → 结果】
+1. open-pdf      click 后弹文件选择;或对 input[accept="application/pdf"] setFiles
+2. add-text      click → 当前页中央插入文本框「输入文字」并直接进入编辑态
+                 (全选,直接键入即替换);Esc / 点击空白处 = 提交
+3. add-page      click → 在当前页后插入一张 A4 空白页并选中它(缩略图带「新建」角标)
+4. replace-image click 弹文件选择;或对 input[accept="image/*"] setFiles
+                 → 替换当前选中页;也可把图片文件拖拽到预览区
+5. move-page     拖拽缩略图排序:在 aside [data-action="select-page"] 上发起 HTML5
+                 drag(dragstart → dragover 目标 → drop),落到目标位置并记入撤销栈。
+                 注意:CDP 合成鼠标事件不触发 HTML5 DnD,需 Input.dispatchDragEvent
+                 或注入 DragEvent(dispatchEvent,携带 DataTransfer)
+6. delete-page   click → 删除当前页(其替换图与文字框一并移除),会弹出 confirm
+                 二次确认(headless 可用 dialog 自动接受);仅剩一页时按钮禁用;⌘Z 可恢复
+7. fit-contain   click → 替换图改为"适应"(完整放入,白底补空,不裁切)
+8. fit-cover     click → 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
+9. replace-scale input[type=range] min0.5 max3 step0.05,值为相对 contain/cover
+                 基准的倍率;pointerup / keyup / blur 时提交并入撤销栈
+10. adjust-reset  click → 替换图重置为 contain + 100% + 居中
+11. select-page   click(thumb item,data-page-index="当前顺序位置,0 起")→ 切换当前页;
+                 键盘 ←/→ 亦可;切页会退出对比模式并取消文字选中
+12. toggle-compare click → 预览区原地进入对比模式(再点一次退出),默认左右并排
+13. cmp-side / cmp-slider / cmp-toggle  对比三模式 tab;快捷键 1 / 2 / 3;
+    cmp-slider 拖动分隔线逐区域对比;cmp-toggle 按空格或底部胶囊按钮翻转前后;
+    cmp-exit 或 Esc 退出对比
+14. text-font-dec / text-font-inc  选中文字框后可用;字号 ×0.8 / ×1.25(上限0.3、下限0.02)
+15. text-color   data-color="#1e293b|#2563eb|#dc2626|#ffffff" 四个色点,click 换色
+16. text-delete  click 删除选中文字框;选中态下按 Delete / Backspace 同效
+17. zoom-in / zoom-out / zoom-reset  页面视图缩放(0.25~3 倍,reset=适应窗口100%)
+18. undo         click 或 ⌘Z;快照式撤销,覆盖页面增删排序/图片替换/排版调整/文字增删改
+19. revert-page  click → 移除当前页的图片替换(文字框不受影响)
+20. export-pdf   click → 按当前页面顺序重建文档并浏览器下载「<原文件名>-替换版.pdf」
+                 headless 环境请先配置下载目录;无任何编辑时按钮禁用
+
+【拖拽交互(可选路径)】
+- 拖图片文件悬停预览区:当前页出现蓝色虚线框与「松开鼠标,替换当前页」提示,松开即替换
+- 拖 PDF 文件悬停:提示打开文档(会覆盖当前编辑)
+- HTML5 拖拽无法用 CDP 直接合成,自动化时请走隐藏 input 的 setFiles 路径
+
+【交互语义】
+- 页面模型:每页为 PageEntry{id, srcIndex(原始页码或 null=新建空白页), w, h},
+  pageList 顺序即文档顺序;替换图与文字框均以页面 id 关联,插入/拖拽重排后自动跟随
+- 新建空白页固定 A4(595.28×841.89 pt),缩略图与页码下方带「新建」标记
+- 替换图排版参数(存于每页替换记录):
+    fit: contain | cover
+    scale: 相对基准倍率(1 = contain/cover 刚好适配)
+    offsetX/offsetY: 归一化偏移,-1~1,0=居中(可直接在预览卡片上拖动调整)
+- 文字框参数(存于文档级列表):
+    pageId,x,y: 页面归一化坐标 0~1(中心点)
+    size: 字号 = 页面宽度 × size;支持 \n 多行;textAlign 居中
+- 替换后未提交的实时调整(拖动中/滑杆中)在松手时才提交并入撤销栈
+- 打开新文档且已有编辑时,会弹出 confirm 确认(headless 可用 dialog 自动接受)
+
+【验证信号(断言用)】
+- 状态栏 footer 文本:`文档:<名>` | `第 x / y 页` | `已替换 n 页`(n>0 才出现)| `缩放 %`
+- 缩略图角标:aside [data-thumb-badge] 存在 = 该页已被替换
+- 对比模式判定:DOM 中存在 [role="tab"][data-action^="cmp-"] 即处于对比态
+- 文字框存在:[data-textbox];编辑态即该元素 contenteditable="plaintext-only"
+- 操作反馈 toast:[data-sonner-toast](成功/撤销/错误均有文案)
+- 按钮可用性:disabled 属性(如未替换时 toggle-compare / revert-page / export 禁用)
+
+【已知限制】
+- 含文字的页导出时整体栅格化(高分辨率位图,支持中文),纯图片替换页保持矢量绘制
+- 不处理页面 Rotation;替换图拖动偏移范围 -1~1;图片上限 20MB
+- 含文字的页导出时整体栅格化(高分辨率位图),纯图片替换页保持矢量绘制
+- 无协作/草稿保存;刷新丢状态
+================================================================================
