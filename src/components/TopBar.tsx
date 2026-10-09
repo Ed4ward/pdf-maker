@@ -103,8 +103,8 @@ export default function TopBar({
 
   return (
     <header className="relative z-20 shrink-0 border-b bg-background">
-      {/* 第一行:品牌 + 语言切换 */}
-      <div className="flex h-11 items-center justify-between px-2 md:px-4">
+      {/* 第一行:标题栏(品牌 + 语言切换) */}
+      <div className="flex h-11 items-center justify-between border-b px-2 md:px-4">
         <div className="flex items-center gap-2.5">
           <BrandMark className="size-8 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
           <span className="text-[15px] font-semibold">PDF编辑器</span>
@@ -124,8 +124,8 @@ export default function TopBar({
           <TooltipContent side="bottom">Language / 语言</TooltipContent>
         </Tooltip>
       </div>
-      {/* 第二行:操作按钮居中,放不下时横向滑动 */}
-      <div className="scrollbar-none mx-auto flex w-max items-center gap-0.5 overflow-x-auto px-2 pb-1.5 md:gap-1.5">
+      {/* 第二行:菜单栏(操作按钮,左对齐,放不下时横向滑动) */}
+      <div className="scrollbar-none flex w-full items-center gap-0.5 overflow-x-auto px-2 pb-1.5 md:gap-1.5">
       <Group>
         {hasEdits ? (
           <AlertDialog>
