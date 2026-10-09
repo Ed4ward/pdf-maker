@@ -299,9 +299,6 @@ function EditorApp() {
         toast.error(t("toast.needPdf"));
         return;
       }
-      if (Object.keys(state.replacements).length > 0 && !confirm(t("confirm.openNew"))) {
-        return;
-      }
       const bytes = new Uint8Array(await file.arrayBuffer());
       await openDocument(bytes, file.name);
     },
@@ -384,10 +381,6 @@ function EditorApp() {
   const handleDeletePage = useCallback(() => {
     if (state.pageList.length <= 1) {
       toast.info(t("toast.keepOnePage"));
-      return;
-    }
-    // 二次确认:该页的替换图与文字会一并删除
-    if (!confirm(t("confirm.deletePage", { page: state.current + 1 }))) {
       return;
     }
     setCompare(null);
@@ -585,6 +578,9 @@ function EditorApp() {
   const handleDropFile = useCallback(
     (file: File) => {
       if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
+        if ((replacedCount > 0 || state.textBoxes.length > 0) && !confirm(t("confirm.openNew"))) {
+          return;
+        }
         handlePdfFile(file);
       } else if (file.type.startsWith("image/")) {
         if (!state.doc) {
@@ -594,7 +590,7 @@ function EditorApp() {
         handleImageFile(file);
       }
     },
-    [handlePdfFile, handleImageFile, state.doc]
+    [handlePdfFile, handleImageFile, state.doc, replacedCount, state.textBoxes, t]
   );
 
   /* -- 启动:空状态,等待用户打开 PDF -- */
@@ -608,6 +604,8 @@ function EditorApp() {
         canUndo={state.past.length > 0}
         canExport={hasDoc && (replacedCount > 0 || state.textBoxes.length > 0)}
         canDeletePage={hasDoc && state.pageList.length > 1}
+        hasEdits={replacedCount > 0 || state.textBoxes.length > 0}
+        currentPage={state.current + 1}
         onOpen={() => filePdfRef.current?.click()}
         onAddPage={handleAddPage}
         onAddText={handleAddText}

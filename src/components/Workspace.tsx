@@ -9,13 +9,17 @@ import {
 } from "react";
 import { Columns2, MoveHorizontal, Trash2, ToggleLeft, X } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
 import { cn } from "@/lib/utils";
-import type { CompareMode, PageInfo, Replacement, ReplacementPatch, TextBox, TextBoxPatch } from "@/types";
+import type { CompareMode, FitMode, PageInfo, Replacement, ReplacementPatch, TextBox, TextBoxPatch } from "@/types";
 
 /** 原地对比模式的状态(由 App 持有) */
 export interface CompareView {
@@ -356,46 +360,44 @@ export default function Workspace({
       {/* 替换图调整工具条 */}
       {hasDoc && !compare && replacement && (
         <div className="absolute bottom-4 left-1/2 z-[5] flex -translate-x-1/2 items-center gap-3 rounded-xl border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-          <div className="flex rounded-lg bg-slate-100 p-0.5">
-            <button
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={replacement.fit}
+            onValueChange={(v) => {
+              if (v) onAdjust({ fit: v as FitMode }, true);
+            }}
+            className="gap-0 rounded-lg bg-slate-100 p-0.5"
+          >
+            <ToggleGroupItem
+              value="contain"
               data-action="fit-contain"
-              className={cn(
-                "h-7 cursor-pointer rounded-md px-3 text-xs font-medium",
-                replacement.fit === "contain"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-              onClick={() => onAdjust({ fit: "contain" }, true)}
-            >{t("adjust.fitContain")}</button>
-            <button
+              className="h-7 cursor-pointer border-none px-3 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+            >
+              {t("adjust.fitContain")}
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="cover"
               data-action="fit-cover"
-              className={cn(
-                "h-7 cursor-pointer rounded-md px-3 text-xs font-medium",
-                replacement.fit === "cover"
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-900"
-              )}
-              onClick={() => onAdjust({ fit: "cover" }, true)}
-            >{t("adjust.fitCover")}</button>
-          </div>
+              className="h-7 cursor-pointer border-none px-3 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+            >
+              {t("adjust.fitCover")}
+            </ToggleGroupItem>
+          </ToggleGroup>
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500">{t("adjust.scale")}</span>
-            <input
+            <Slider
               data-action="replace-scale"
-              type="range"
               min={0.5}
               max={3}
               step={0.05}
-              value={effRep?.scale ?? 1}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                liveScaleRef.current = v;
-                setLiveScale(v);
+              value={[effRep?.scale ?? 1]}
+              onValueChange={(v) => {
+                liveScaleRef.current = v[0];
+                setLiveScale(v[0]);
               }}
-              onPointerUp={commitScale}
-              onKeyUp={commitScale}
-              onBlur={commitScale}
-              className="w-28 accent-primary"
+              onValueCommit={commitScale}
+              className="w-28"
             />
             <span className="w-10 text-xs text-slate-700 tabular-nums">
               {Math.round((effRep?.scale ?? 1) * 100)}%
@@ -406,7 +408,7 @@ export default function Workspace({
             className="cursor-pointer text-xs text-slate-500 hover:text-slate-900"
             onClick={() => onAdjust({ fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
           >{t("adjust.reset")}</button>
-          <div className="h-4 w-px bg-border" />
+          <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
           <span className="text-xs text-slate-400">{t("adjust.hint")}</span>
         </div>
       )}
@@ -493,14 +495,15 @@ export default function Workspace({
             ] as const
           ).map(({ kind, label, src }) => (
             <div key={kind} className="flex flex-col items-center gap-2">
-              <span
+              <Badge
+                variant={kind === "before" ? "secondary" : "outline"}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-0.5 text-[12px] font-semibold",
-                  kind === "before" ? "bg-slate-100 text-slate-500" : "bg-emerald-50 text-emerald-600"
+                  "rounded-full px-3 py-0.5 text-[12px] font-semibold",
+                  kind === "after" && "border-emerald-200 bg-emerald-50 text-emerald-700"
                 )}
               >
                 {label}
-              </span>
+              </Badge>
               <div className={stageCardClass} style={{ width: sideStyle.w, height: sideStyle.h }}>
                 <img
                   src={src}
@@ -551,7 +554,7 @@ export default function Workspace({
               />
             ))}
           </div>
-          <div className="h-4 w-px bg-border" />
+          <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
           <button
             className="grid size-7 cursor-pointer place-items-center rounded-md text-red-500 hover:bg-red-50"
             data-action="text-delete"

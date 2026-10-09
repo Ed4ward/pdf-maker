@@ -39,14 +39,16 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
                  drag(dragstart → dragover 目标 → drop),落到目标位置并记入撤销栈。
                  注意:CDP 合成鼠标事件不触发 HTML5 DnD,需 Input.dispatchDragEvent
                  或注入 DragEvent(dispatchEvent,携带 DataTransfer)
-6. delete-page   click → 删除当前页(其替换图与文字框一并移除),会弹出 confirm
-                 二次确认(headless 可用 dialog 自动接受);仅剩一页时按钮禁用;⌘Z 可恢复
+6. delete-page   click → 弹出 AlertDialog 二次确认([data-action="confirm-delete"]
+                 确认,[data-action="cancel-delete"] 取消);确认后删除当前页
+                 (其替换图与文字框一并移除,⌘Z 可恢复);仅剩一页时按钮禁用
 7. toggle-locale click → 切换界面语言 中文 ↔ English(顶栏右侧;localStorage 持久化,
                  默认跟随浏览器语言);所有界面文案、toast 与 confirm 均随语言切换
 8. fit-contain   click → 替换图改为"适应"(完整放入,白底补空,不裁切)
 9. fit-cover     click → 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
-10. replace-scale input[type=range] min0.5 max3 step0.05,值为相对 contain/cover
-                 基准的倍率;pointerup / keyup / blur 时提交并入撤销栈
+10. replace-scale Radix Slider(0.5~3,step 0.05),值为相对 contain/cover
+                 基准的倍率;onValueCommit(松手/键盘提交)时并入撤销栈。
+                 自动化:聚焦 thumb 后用方向键调整,或直接派发键盘事件
 11. adjust-reset  click → 替换图重置为 contain + 100% + 居中
 12. select-page   click(thumb item,data-page-index="当前顺序位置,0 起")→ 切换当前页;
                  键盘 ←/→ 亦可;切页会退出对比模式并取消文字选中
@@ -80,7 +82,8 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
     pageId,x,y: 页面归一化坐标 0~1(中心点)
     size: 字号 = 页面宽度 × size;支持 \n 多行;textAlign 居中
 - 替换后未提交的实时调整(拖动中/滑杆中)在松手时才提交并入撤销栈
-- 打开新文档且已有编辑时,会弹出 confirm 确认(headless 可用 dialog 自动接受)
+- 打开新文档且已有编辑时,工具栏会弹出 AlertDialog 确认
+  ([data-action="confirm-open-new"] 继续 / [data-action="cancel-open-new"] 取消);拖拽路径则使用原生 confirm
 
 【验证信号(断言用)】
 - 状态栏 footer 文本:`文档:<名>` | `第 x / y 页` | `已替换 n 页`(n>0 才出现)| `缩放 %`

@@ -91,6 +91,11 @@ const messages: Record<Locale, Record<string, string>> = {
 
     "confirm.deletePage": "确定删除第 {page} 页?该页的替换图与文字将一并移除(可通过撤销恢复)。",
     "confirm.openNew": "打开新文档将丢弃当前所有替换操作,确定继续?",
+    "dialog.cancel": "取消",
+    "dialog.deleteTitle": "删除此页?",
+    "dialog.openNewTitle": "未保存的修改",
+    "dialog.continue": "继续",
+    "dialog.confirmDelete": "删除",
 
     "toast.opened": "已打开「{name}」,共 {n} 页",
     "toast.parseFailed": "PDF 解析失败,请换一个文件试试",
@@ -192,6 +197,11 @@ const messages: Record<Locale, Record<string, string>> = {
 
     "confirm.deletePage": "Delete page {page}? Its replacement image and text boxes will be removed (undoable).",
     "confirm.openNew": "Opening a new document will discard all edits. Continue?",
+    "dialog.cancel": "Cancel",
+    "dialog.deleteTitle": "Delete this page?",
+    "dialog.openNewTitle": "Unsaved changes",
+    "dialog.continue": "Continue",
+    "dialog.confirmDelete": "Delete",
 
     "toast.opened": "Opened “{name}”, {n} pages",
     "toast.parseFailed": "Failed to parse the PDF, try another file",

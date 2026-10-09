@@ -11,9 +11,21 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import BrandMark from "@/components/BrandMark";
-import { useI18n } from "@/i18n";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n } from "@/i18n";
 
 interface IconActionProps {
   /** 稳定的机器可读标识,供 agent 通过 [data-action] 定位 */
@@ -45,6 +57,8 @@ function Group({ children }: { children: ReactNode }) {
   return <div className="flex items-center gap-0.5 px-1">{children}</div>;
 }
 
+const Divider = () => <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-6" />;
+
 interface TopBarProps {
   hasDoc: boolean;
   canRevert: boolean;
@@ -53,6 +67,10 @@ interface TopBarProps {
   canExport: boolean;
   /** 多于一页时才可删除 */
   canDeletePage: boolean;
+  /** 有未导出的编辑时,打开新文档需二次确认 */
+  hasEdits: boolean;
+  /** 当前页码(1 起),用于删除确认文案 */
+  currentPage: number;
   onOpen: () => void;
   onAddPage: () => void;
   onAddText: () => void;
@@ -71,6 +89,8 @@ export default function TopBar({
   canUndo,
   canExport,
   canDeletePage,
+  hasEdits,
+  currentPage,
   onOpen,
   onAddPage,
   onAddText,
@@ -82,6 +102,7 @@ export default function TopBar({
   onExport,
 }: TopBarProps) {
   const { t, locale, setLocale } = useI18n();
+
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center justify-center border-b bg-background px-4">
       {/* 品牌绝对定位在左侧,按钮组在整行居中 */}
@@ -91,8 +112,46 @@ export default function TopBar({
       </div>
 
       <Group>
-        <IconAction action="open-pdf" label={t("topbar.open")} hint={t("topbar.open.hint")} icon={<FolderOpen />} onClick={onOpen} />
+        {hasEdits ? (
+          <AlertDialog>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialogTrigger asChild>
+                  <Button data-action="open-pdf" variant="ghost" size="icon" className="size-8">
+                    <FolderOpen />
+                  </Button>
+                </AlertDialogTrigger>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <span className="font-medium">{t("topbar.open")}</span>
+                <span className="opacity-70"> · {t("topbar.open.hint")}</span>
+              </TooltipContent>
+            </Tooltip>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("dialog.openNewTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>{t("confirm.openNew")}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel data-action="cancel-open-new">{t("dialog.cancel")}</AlertDialogCancel>
+                <AlertDialogAction data-action="confirm-open-new" onClick={onOpen}>
+                  {t("dialog.continue")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        ) : (
+          <IconAction
+            action="open-pdf"
+            label={t("topbar.open")}
+            hint={t("topbar.open.hint")}
+            icon={<FolderOpen />}
+            onClick={onOpen}
+          />
+        )}
       </Group>
+
+      <Divider />
 
       <Group>
         <IconAction
@@ -121,6 +180,8 @@ export default function TopBar({
         />
       </Group>
 
+      <Divider />
+
       <Group>
         <IconAction
           action="revert-page"
@@ -130,16 +191,56 @@ export default function TopBar({
           onClick={onRevert}
           disabled={!canRevert}
         />
-        <IconAction action="undo" label={t("topbar.undo")} hint={t("topbar.undo.hint")} icon={<Undo2 />} onClick={onUndo} disabled={!canUndo} />
         <IconAction
-          action="delete-page"
-          label={t("topbar.delete")}
-          hint={t("topbar.delete.hint")}
-          icon={<Trash2 />}
-          onClick={onDeletePage}
-          disabled={!canDeletePage}
+          action="undo"
+          label={t("topbar.undo")}
+          hint={t("topbar.undo.hint")}
+          icon={<Undo2 />}
+          onClick={onUndo}
+          disabled={!canUndo}
         />
+        <AlertDialog>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <AlertDialogTrigger asChild>
+                <Button
+                  data-action="delete-page"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!canDeletePage}
+                  className="size-8"
+                >
+                  <Trash2 />
+                </Button>
+              </AlertDialogTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <span className="font-medium">{t("topbar.delete")}</span>
+              <span className="opacity-70"> · {t("topbar.delete.hint")}</span>
+            </TooltipContent>
+          </Tooltip>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("dialog.deleteTitle")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("confirm.deletePage", { page: currentPage })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-action="cancel-delete">{t("dialog.cancel")}</AlertDialogCancel>
+              <AlertDialogAction
+                data-action="confirm-delete"
+                className="bg-destructive text-white hover:bg-destructive/90"
+                onClick={onDeletePage}
+              >
+                {t("dialog.confirmDelete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Group>
+
+      <Divider />
 
       <Group>
         <IconAction
@@ -151,6 +252,8 @@ export default function TopBar({
           disabled={!canCompare}
         />
       </Group>
+
+      <Divider />
 
       <Group>
         <IconAction

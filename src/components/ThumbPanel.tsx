@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
+import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { PageEntry, Replacement, TextBox } from "@/types";
@@ -112,13 +113,13 @@ export default function ThumbPanel({
                   <TextBoxLayer boxes={textBoxes.filter((t) => t.pageId === entry.id)} />
                 </div>
                 {rep && (
-                  <span
+                  <Badge
                     data-thumb-badge
-                    className="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10.5px] font-medium text-white shadow-sm"
+                    className="absolute top-1.5 left-1.5 gap-0.5 rounded-full border-transparent bg-emerald-600 px-1.5 py-0.5 text-[10.5px] text-white shadow-sm"
                   >
                     <ImageIcon className="size-2.5" />
                     {t("thumbs.replaced")}
-                  </span>
+                  </Badge>
                 )}
               </div>
               <div
@@ -128,7 +129,7 @@ export default function ThumbPanel({
                 )}
               >
                 {i + 1}
-                {entry.srcIndex == null && <span className="ml-1 text-[10px] text-slate-300">{t("thumbs.new")}</span>}
+                {entry.srcIndex == null && <Badge variant="outline" className="ml-1 border-slate-200 px-1 py-0 text-[9px] font-normal text-slate-400">{t("thumbs.new")}</Badge>}
               </div>
             </div>
           );
