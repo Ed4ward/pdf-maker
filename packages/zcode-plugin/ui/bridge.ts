@@ -128,13 +128,48 @@ export const api = {
     }),
 };
 
-export async function readResourceBase64(uri: string): Promise<{ bytes: ArrayBuffer; mime: string }> {
-  await withTimeout(ready(), 8000, "连接宿主");
-  const result = await withTimeout(app.readServerResource({ uri }), 30000, `读取 ${uri}`);
-  const c = result.contents[0] as { mimeType?: string; blob?: string };
-  if (!c?.blob) throw new DocError("not_found", `资源为空:${uri}`);
-  const bin = atob(c.blob);
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return { bytes: bytes.buffer, mime: c.mimeType ?? "application/octet-stream" };
+  return bytes;
 }
+
+/** 分块读取二进制(工具通道;宿主 MIME 白名单拦截 pdf 类资源,不能用 readResource) */
+async function readChunked(
+  name: "read_source" | "read_asset",
+  args: Record<string, unknown>,
+): Promise<{ bytes: ArrayBuffer; mime: string }> {
+  let offset = 0;
+  let mime = "application/octet-stream";
+  const parts: Uint8Array[] = [];
+  for (let guard = 0; guard < 100000; guard++) {
+    const r = await withTimeout(
+      call<{ base64: string; mime?: string; total: number; done: boolean }>(name, {
+        ...args,
+        offset,
+      }),
+      60000,
+      name,
+    );
+    mime = r.mime ?? mime;
+    const u8 = base64ToBytes(r.base64 ?? "");
+    parts.push(u8);
+    offset += u8.length;
+    if (r.done || u8.length === 0) break;
+  }
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  return { bytes: out.buffer, mime };
+}
+
+export const binary = {
+  source: (docId: string) => readChunked("read_source", { doc_id: docId }),
+  asset: (docId: string, assetId: string) =>
+    readChunked("read_asset", { doc_id: docId, asset_id: assetId }),
+};

@@ -1,4 +1,3 @@
-import { join, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -6,8 +5,6 @@ import {
   PANEL_URI,
   PLUGIN_NAME,
   SURFACE_ID,
-  assetResourceUri,
-  sourceResourceUri,
 } from "./contract.ts";
 import { DocStore } from "./document.ts";
 
@@ -327,6 +324,46 @@ export function createPdfEditorServer({
     },
   );
 
+  const CHUNK = 48 * 1024; // 低于结构化内容 64KiB 上限
+  const chunked = (bytes: Uint8Array, mime: string, offset: number) => {
+    const end = Math.min(bytes.byteLength, offset + CHUNK);
+    return {
+      base64: Buffer.from(bytes.subarray(offset, end)).toString("base64"),
+      mime,
+      offset,
+      total: bytes.byteLength,
+      done: end >= bytes.byteLength,
+    };
+  };
+
+  register(
+    "read_source",
+    "面板:分块读取原始 PDF 字节(循环调用直到 done),资源通道被宿主 MIME 白名单拦截,故走工具通道",
+    {
+      doc_id: z.string(),
+      offset: z.number().int().min(0).optional(),
+    },
+    "app",
+    async (input: { doc_id: string; offset?: number }) =>
+      chunked(store.sourceBytes(input.doc_id), "application/pdf", input.offset ?? 0),
+  );
+
+  register(
+    "read_asset",
+    "面板:分块读取替换图字节(循环调用直到 done)",
+    {
+      doc_id: z.string(),
+      asset_id: z.string(),
+      offset: z.number().int().min(0).optional(),
+    },
+    "app",
+    async (input: { doc_id: string; asset_id: string; offset?: number }) => {
+      const asset = store.assetBytes(input.doc_id, input.asset_id);
+      if (!asset) throw new DocError("not_found", `资源不存在:${input.asset_id}`);
+      return chunked(asset.bytes, asset.mime, input.offset ?? 0);
+    },
+  );
+
   register(
     "stage_composite",
     "面板:提交某页的高分辨率合成位图(jpeg dataURL),导出含文字页时必须",
@@ -342,58 +379,12 @@ export function createPdfEditorServer({
     },
   );
 
-  // ---- 资源:面板 HTML、原始 PDF、替换图 ----
+  // ---- 资源:仅面板 HTML(二进制走工具通道,宿主 MIME 白名单拦截 application/pdf)----
 
   server.registerResource("panel", PANEL_URI, { mimeType: HTML_MIME }, async () => ({
     contents: [{ uri: PANEL_URI, mimeType: HTML_MIME, text: panelHtml }],
   }));
 
-  const registerDocResources = (docId: string) => {
-    server.registerResource(
-      `source:${docId}`,
-      sourceResourceUri(docId),
-      { mimeType: "application/pdf" },
-      async () => ({
-        contents: [
-          {
-            uri: sourceResourceUri(docId),
-            mimeType: "application/pdf",
-            blob: Buffer.from(store.sourceBytes(docId)).toString("base64"),
-          },
-        ],
-      }),
-    );
-    const doc = store.peek(docId, workspaceRoot);
-    for (const [pageId, rep] of Object.entries(doc.replacements)) {
-      void pageId;
-      const asset = store.assetBytes(docId, rep.assetId);
-      if (!asset) continue;
-      server.registerResource(
-        `asset:${docId}:${rep.assetId}`,
-        assetResourceUri(docId, rep.assetId),
-        { mimeType: asset.mime },
-        async () => ({
-          contents: [
-            {
-              uri: assetResourceUri(docId, rep.assetId),
-              mimeType: asset.mime,
-              blob: Buffer.from(asset.bytes).toString("base64"),
-            },
-          ],
-        }),
-      );
-    }
-  };
-
-  const originalLoad = store.load.bind(store);
-  store.load = async (...args) => {
-    const state = await originalLoad(...args);
-    registerDocResources(state.docId);
-    return state;
-  };
-
   return server;
 }
 
-// resolveWorkspace 由 store 持有;此处仅保留路径语义提示
-export const workspacePath = (root: string, rel: string) => resolve(join(root, rel));

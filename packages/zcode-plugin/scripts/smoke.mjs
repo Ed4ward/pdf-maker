@@ -90,6 +90,8 @@ async function main() {
   if (doc.pageCount !== 3) return fail(`页数错误:${doc.pageCount}`);
 
   await call("replace_page_with_image", { doc_id: doc.docId, page_index: 1, image_path: "replacement.png" });
+const src1 = await call("read_source", { doc_id: doc.docId, offset: 0 });
+if (!src1.base64 || typeof src1.total !== "number") return fail("read_source 返回异常");
   await call("add_text", { doc_id: doc.docId, page_index: 0, text: "Hello PDF 编辑器" });
 
   // 含文字的页导出需要面板合成:直接导出应报 composite_required

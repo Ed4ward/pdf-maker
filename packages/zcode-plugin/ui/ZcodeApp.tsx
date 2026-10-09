@@ -17,8 +17,7 @@ import { Button } from "@/components/ui/button";
 import { I18nProvider, useI18n } from "@/i18n";
 import type { CompareMode, PageEntry, Replacement as WebReplacement, TextBoxPatch } from "@/types";
 import type { DocState as ServerDocState } from "../src/contract.ts";
-import { sourceResourceUri } from "../src/contract.ts";
-import { api, onBridgeStatus, onDocState, onTheme, readResourceBase64, type BridgeStatus } from "./bridge";
+import { api, binary, onBridgeStatus, onDocState, onTheme, type BridgeStatus } from "./bridge";
 import { compositePage, loadSource, renderBase, drawReplacement, loadImage } from "./pdf";
 
 /**
@@ -126,9 +125,7 @@ function ZcodeEditor() {
     void (async () => {
       for (const rep of missing) {
         try {
-          const { bytes, mime } = await readResourceBase64(
-            `pdf://pdf-editor/${snapshot.docId}/asset/${rep.assetId}`,
-          );
+          const { bytes, mime } = await binary.asset(snapshot.docId, rep.assetId);
           const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
           if (cancelled) return;
           setAssetUrls((prev) => ({ ...prev, [rep.assetId]: url }));
@@ -147,7 +144,7 @@ function ZcodeEditor() {
   const withSource = useCallback(
     async (fn: (pdfDoc: import("pdfjs-dist").PDFDocumentProxy) => Promise<void>) => {
       if (!snapshot) return;
-      const { bytes } = await readResourceBase64(sourceResourceUri(snapshot.docId));
+      const { bytes } = await binary.source(snapshot.docId);
       const pdfDoc = await loadSource(snapshot.docId, bytes);
       await fn(pdfDoc);
     },
