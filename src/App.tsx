@@ -628,24 +628,32 @@ function EditorApp() {
     [state.doc, state.fulls, state.pageList]
   );
 
+  /* -- 导出文件名:<原名>-<后缀>.pdf -- */
+  const exportFileName = (state.fileName ?? "document").replace(/\.pdf$/i, "") + "-" + t("export.fileSuffix") + ".pdf";
+
+  const buildPdfBytes = useCallback(
+    () =>
+      buildReplacedPdf(
+        state.pdfBytes!,
+        state.pageList,
+        state.replacements,
+        state.textBoxes,
+        getPageRender
+      ),
+    [state.pdfBytes, state.pageList, state.replacements, state.textBoxes, getPageRender]
+  );
+
   const handleExport = useCallback(async () => {
     if (!state.pdfBytes || !hasEdits) return;
     setDocLoading(true);
     setLoadingText(t("loading.export"));
     try {
-      const bytes = await buildReplacedPdf(
-        state.pdfBytes,
-        state.pageList,
-        state.replacements,
-        state.textBoxes,
-        getPageRender
-      );
+      const bytes = await buildPdfBytes();
       const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const base = (state.fileName ?? "document").replace(/\.pdf$/i, "");
       a.href = url;
-      a.download = `${base}-${t("export.fileSuffix")}.pdf`;
+      a.download = exportFileName;
       a.click();
       URL.revokeObjectURL(url);
       toast.success(t("toast.exported"));
@@ -655,7 +663,49 @@ function EditorApp() {
     } finally {
       setDocLoading(false);
     }
-  }, [state.pdfBytes, state.pageList, state.replacements, state.textBoxes, state.fileName, hasEdits, getPageRender, t]);
+  }, [state.pdfBytes, hasEdits, buildPdfBytes, exportFileName, t]);
+
+  /* -- 另存为:优先文件保存对话框(File System Access API),不支持时回退普通下载 -- */
+  const handleExportAs = useCallback(async () => {
+    if (!state.pdfBytes || !hasEdits) return;
+    setDocLoading(true);
+    setLoadingText(t("loading.export"));
+    try {
+      const bytes = await buildPdfBytes();
+      const pickerHost = window as Window & {
+        showSaveFilePicker?: (options: {
+          suggestedName?: string;
+          types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+        }) => Promise<{ createWritable: () => Promise<{ write: (data: BlobPart) => Promise<void>; close: () => Promise<void> }> }>;
+      };
+      if (typeof pickerHost.showSaveFilePicker === "function") {
+        const handle = await pickerHost.showSaveFilePicker({
+          suggestedName: exportFileName,
+          types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(new Blob([bytes as BlobPart], { type: "application/pdf" }));
+        await writable.close();
+        toast.success(t("toast.exportedTo", { path: exportFileName }));
+      } else {
+        const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = exportFileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(t("toast.exported"));
+      }
+    } catch (err) {
+      // 用户取消保存对话框:静默忽略
+      if ((err as DOMException)?.name === "AbortError") return;
+      console.error(err);
+      toast.error(t("toast.exportFailed"));
+    } finally {
+      setDocLoading(false);
+    }
+  }, [state.pdfBytes, hasEdits, buildPdfBytes, exportFileName, t]);
 
   /* -- 对比(在预览区原地展示) -- */
   const openCompare = useCallback(
@@ -1014,6 +1064,7 @@ function EditorApp() {
           onUndo={handleUndo}
           canUndo={state.past.length > 0}
           onExport={handleExport}
+          onSaveAs={handleExportAs}
           canExport={hasDoc && hasEdits}
           viewMode={state.viewMode}
           onViewMode={(value) => dispatch({ type: "viewMode", value })}

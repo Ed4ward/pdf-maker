@@ -12,10 +12,10 @@ export type Locale = "zh-CN" | "en";
 
 const messages: Record<Locale, Record<string, string>> = {
   "zh-CN": {
-    "app.title": "PDF编辑器 - 在线 PDF 图片替换、添加文字、页面对比工具",
+    "app.title": "PDF 书坊 PDFPress - 在线阅读、图片替换、添加文字、旋转改版、页面对比",
     "lang.toggle": "EN",
 
-    "app.name": "PDF编辑器",
+    "app.name": "PDF 书坊",
     "menu.file": "文件",
     "menu.page": "页面",
     "menu.edit": "编辑",
@@ -51,6 +51,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "topbar.zen.hint": "隐藏界面并全屏,沉浸预览 · Esc 退出",
     "zen.exit": "退出 Zen 模式 (Esc)",
     "topbar.export": "导出 PDF",
+    "topbar.saveAs": "另存为",
     "topbar.export.hint": "下载替换后的文件",
     "topbar.github": "GitHub 仓库",
 
@@ -175,10 +176,10 @@ const messages: Record<Locale, Record<string, string>> = {
     "toast.pageDeletedShort": "页面已删除",
   },
   en: {
-    "app.title": "PDF Editor – Replace PDF pages with images, add text, compare & export, 100% in your browser",
+    "app.title": "PDFPress – Read and craft PDFs in your browser: replace pages with images, add text, rotate, resize & export",
     "lang.toggle": "中文",
 
-    "app.name": "PDF Editor",
+    "app.name": "PDFPress",
     "menu.file": "File",
     "menu.page": "Page",
     "menu.edit": "Edit",
@@ -214,6 +215,7 @@ const messages: Record<Locale, Record<string, string>> = {
     "topbar.zen.hint": "Hide UI and go fullscreen for focused preview · Esc to exit",
     "zen.exit": "Exit Zen mode (Esc)",
     "topbar.export": "Export PDF",
+    "topbar.saveAs": "Save as",
     "topbar.export.hint": "Download the edited file",
     "topbar.github": "GitHub repository",
 

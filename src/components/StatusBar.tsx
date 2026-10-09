@@ -14,12 +14,13 @@ interface StatusBarProps {
 export default function StatusBar({ fileName, current, total, replacedCount, zoom, onPrevPage, onNextPage }: StatusBarProps) {
   const { t } = useI18n();
   return (
-    <footer className="flex h-[34px] shrink-0 items-center gap-4 border-t bg-background px-4 text-xs text-slate-500">
-      <span className="hidden sm:flex">
-        {t("status.doc")} <span className="font-medium text-slate-800">{fileName ?? "—"}</span>
+    // 三列网格:左侧文档名 / 居中页码 / 右侧替换与缩放
+    <footer className="grid h-[34px] shrink-0 grid-cols-3 items-center border-t bg-background px-4 text-xs text-slate-500">
+      <span className="hidden justify-self-start sm:flex">
+        {t("status.doc")} <span className="ml-1 font-medium text-slate-800">{fileName ?? "—"}</span>
       </span>
       {total > 0 && (
-        <span className="flex items-center gap-0.5">
+        <span className="flex items-center justify-self-center gap-0.5">
           <button
             data-action="prev-page"
             className="grid size-5 cursor-pointer place-items-center rounded hover:bg-accent hover:text-slate-900 disabled:cursor-default disabled:opacity-40"
@@ -43,14 +44,15 @@ export default function StatusBar({ fileName, current, total, replacedCount, zoo
           </button>
         </span>
       )}
-      <span className="flex-1" />
-      {replacedCount > 0 && (
-        <span className="flex items-center gap-1 font-medium text-emerald-600">
-          <ImageIcon className="size-3" />
-          {t("status.replaced", { n: replacedCount })}
-        </span>
-      )}
-      <span className="hidden sm:flex">{t("status.zoom", { z: Math.round(zoom * 100) })}</span>
+      <span className="hidden items-center justify-self-end gap-4 sm:flex">
+        {replacedCount > 0 && (
+          <span className="flex items-center gap-1 font-medium text-emerald-600">
+            <ImageIcon className="size-3" />
+            {t("status.replaced", { n: replacedCount })}
+          </span>
+        )}
+        <span>{t("status.zoom", { z: Math.round(zoom * 100) })}</span>
+      </span>
     </footer>
   );
 }

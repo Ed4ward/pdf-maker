@@ -14,6 +14,7 @@ import {
   Download,
   Focus,
   FolderOpen,
+  Save,
   ImageOff,
   ImagePlus,
   MoveHorizontal,
@@ -163,8 +164,9 @@ interface WorkspaceProps {
   onCompare: () => void;
   onUndo: () => void;
   canUndo: boolean;
-  /** 文件:打开(内部处理未保存确认)/ 导出 */
+  /** 文件:打开(内部处理未保存确认)/ 导出 / 另存为 */
   onExport: () => void;
+  onSaveAs: () => void;
   canExport: boolean;
   /** 视图:单页/双页滑块(Zen 为第三段)+ Zen 回调 */
   viewMode: ViewMode;
@@ -208,6 +210,7 @@ export default function Workspace({
   onUndo,
   canUndo,
   onExport,
+  onSaveAs,
   canExport,
   viewMode,
   onViewMode,
@@ -901,6 +904,7 @@ export default function Workspace({
             <BarDivider />
             <BarButton action="open-pdf" icon={<FolderOpen />} label={t("topbar.open")} shortcut="O" onClick={onOpen} />
             <BarButton action="export-pdf" icon={<Download />} label={t("topbar.export")} disabled={!canExport} onClick={onExport} />
+            <BarButton action="export-pdf-as" icon={<Save />} label={t("topbar.saveAs")} disabled={!canExport} onClick={onSaveAs} />
           </div>
         </div>
       )}
