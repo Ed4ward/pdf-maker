@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import BrandMark from "@/components/BrandMark";
+import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -80,6 +81,7 @@ export default function TopBar({
   onUndo,
   onExport,
 }: TopBarProps) {
+  const { t, locale, setLocale } = useI18n();
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center justify-center border-b bg-background px-4">
       {/* 品牌绝对定位在左侧,按钮组在整行居中 */}
@@ -89,30 +91,30 @@ export default function TopBar({
       </div>
 
       <Group>
-        <IconAction action="open-pdf" label="打开 PDF" hint="选择本地文件" icon={<FolderOpen />} onClick={onOpen} />
+        <IconAction action="open-pdf" label={t("topbar.open")} hint={t("topbar.open.hint")} icon={<FolderOpen />} onClick={onOpen} />
       </Group>
 
       <Group>
         <IconAction
           action="add-text"
-          label="添加文字"
-          hint="在当前页插入文本框"
+          label={t("topbar.addText")}
+          hint={t("topbar.addText.hint")}
           icon={<Type />}
           onClick={onAddText}
           disabled={!hasDoc}
         />
         <IconAction
           action="add-page"
-          label="新建页面"
-          hint="在当前页后插入空白页"
+          label={t("topbar.addPage")}
+          hint={t("topbar.addPage.hint")}
           icon={<Plus />}
           onClick={onAddPage}
           disabled={!hasDoc}
         />
         <IconAction
           action="replace-image"
-          label="用图片替换此页"
-          hint="选择图片替换当前页"
+          label={t("topbar.replace")}
+          hint={t("topbar.replace.hint")}
           icon={<ImagePlus />}
           onClick={onReplace}
           disabled={!hasDoc}
@@ -122,17 +124,17 @@ export default function TopBar({
       <Group>
         <IconAction
           action="revert-page"
-          label="恢复原页"
-          hint="撤销此页的图片替换"
+          label={t("topbar.revert")}
+          hint={t("topbar.revert.hint")}
           icon={<RotateCcw />}
           onClick={onRevert}
           disabled={!canRevert}
         />
-        <IconAction action="undo" label="撤销" hint="⌘Z" icon={<Undo2 />} onClick={onUndo} disabled={!canUndo} />
+        <IconAction action="undo" label={t("topbar.undo")} hint={t("topbar.undo.hint")} icon={<Undo2 />} onClick={onUndo} disabled={!canUndo} />
         <IconAction
           action="delete-page"
-          label="删除此页"
-          hint="删除当前页(需确认)"
+          label={t("topbar.delete")}
+          hint={t("topbar.delete.hint")}
           icon={<Trash2 />}
           onClick={onDeletePage}
           disabled={!canDeletePage}
@@ -142,8 +144,8 @@ export default function TopBar({
       <Group>
         <IconAction
           action="toggle-compare"
-          label="替换对比"
-          hint="对比替换前后内容"
+          label={t("topbar.compare")}
+          hint={t("topbar.compare.hint")}
           icon={<Columns2 />}
           onClick={onCompare}
           disabled={!canCompare}
@@ -153,13 +155,22 @@ export default function TopBar({
       <Group>
         <IconAction
           action="export-pdf"
-          label="导出 PDF"
-          hint="下载替换后的文件"
+          label={t("topbar.export")}
+          hint={t("topbar.export.hint")}
           icon={<Download />}
           onClick={onExport}
           disabled={!canExport}
         />
       </Group>
+
+      <button
+        data-action="toggle-locale"
+        title="Language / 语言"
+        onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
+        className="absolute right-4 cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900"
+      >
+        {t("lang.toggle")}
+      </button>
     </header>
   );
 }

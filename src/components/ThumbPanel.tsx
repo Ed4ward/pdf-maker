@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
+import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { PageEntry, Replacement, TextBox } from "@/types";
 
@@ -25,6 +26,7 @@ export default function ThumbPanel({
   onSelect,
   onMovePage,
 }: ThumbPanelProps) {
+  const { t } = useI18n();
   const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
@@ -41,9 +43,9 @@ export default function ThumbPanel({
   return (
     <aside className="flex w-[264px] shrink-0 flex-col border-l bg-background">
       <div className="flex h-11 shrink-0 items-center justify-between border-b px-4">
-        <span className="text-[13px] font-semibold">页面</span>
+        <span className="text-[13px] font-semibold">{t("thumbs.title")}</span>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
-          {entries.length} 页
+          {t("thumbs.count", { n: entries.length })}
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-3">
@@ -115,7 +117,7 @@ export default function ThumbPanel({
                     className="absolute top-1.5 left-1.5 flex items-center gap-0.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10.5px] font-medium text-white shadow-sm"
                   >
                     <ImageIcon className="size-2.5" />
-                    已替换
+                    {t("thumbs.replaced")}
                   </span>
                 )}
               </div>
@@ -126,7 +128,7 @@ export default function ThumbPanel({
                 )}
               >
                 {i + 1}
-                {entry.srcIndex == null && <span className="ml-1 text-[10px] text-slate-300">新建</span>}
+                {entry.srcIndex == null && <span className="ml-1 text-[10px] text-slate-300">{t("thumbs.new")}</span>}
               </div>
             </div>
           );

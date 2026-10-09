@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Columns2, MoveHorizontal, Trash2, ToggleLeft, X } from "lucide-react";
 import BrandMark from "@/components/BrandMark";
+import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReplacedImage from "@/components/ReplacedImage";
@@ -24,10 +25,10 @@ export interface CompareView {
   after: Replacement;
 }
 
-const MODES: Array<{ value: CompareMode; label: string; icon: typeof Columns2 }> = [
-  { value: "side", label: "左右并排", icon: Columns2 },
-  { value: "slider", label: "滑动对比", icon: MoveHorizontal },
-  { value: "toggle", label: "切换查看", icon: ToggleLeft },
+const MODES: Array<{ value: CompareMode; icon: typeof Columns2 }> = [
+  { value: "side", icon: Columns2 },
+  { value: "slider", icon: MoveHorizontal },
+  { value: "toggle", icon: ToggleLeft },
 ];
 
 interface WorkspaceProps {
@@ -89,6 +90,7 @@ export default function Workspace({
   const [dropHint, setDropHint] = useState<null | "image" | "pdf">(null);
   const [pos, setPos] = useState(50);
   const [isAfter, setIsAfter] = useState(false);
+  const { t } = useI18n();
   const draggingRef = useRef(false);
   // 替换图调整:拖动中的实时偏移 / 滑杆中的实时缩放(松手才提交并入撤销栈)
   const [liveOffset, setLiveOffset] = useState<{ x: number; y: number } | null>(null);
@@ -293,9 +295,9 @@ export default function Workspace({
       {!hasDoc && !docLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5">
           <BrandMark className="size-20 drop-shadow-xl shadow-blue-600/20" />
-          <div className="text-base font-semibold text-slate-800">拖拽 PDF 文件到此处</div>
+          <div className="text-base font-semibold text-slate-800">{t("empty.drop")}</div>
           <div className="mt-1">
-            <Button onClick={onOpen}>打开 PDF 文件</Button>
+            <Button onClick={onOpen}>{t("empty.open")}</Button>
           </div>
         </div>
       )}
@@ -340,16 +342,12 @@ export default function Workspace({
           />
           {dropHint === "image" && (
             <div className="absolute inset-0 grid place-items-center bg-blue-600/10">
-              <span className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">
-                松开鼠标,替换当前页
-              </span>
+              <span className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.replace")}</span>
             </div>
           )}
           {dropHint === "pdf" && (
             <div className="absolute inset-0 grid place-items-center bg-slate-900/10">
-              <span className="rounded-full bg-slate-900/85 px-4 py-1.5 text-sm font-medium text-white shadow-lg">
-                松开鼠标,打开 PDF(当前替换内容将丢失)
-              </span>
+              <span className="rounded-full bg-slate-900/85 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.openPdf")}</span>
             </div>
           )}
         </div>
@@ -368,9 +366,7 @@ export default function Workspace({
                   : "text-slate-500 hover:text-slate-900"
               )}
               onClick={() => onAdjust({ fit: "contain" }, true)}
-            >
-              适应
-            </button>
+            >{t("adjust.fitContain")}</button>
             <button
               data-action="fit-cover"
               className={cn(
@@ -380,12 +376,10 @@ export default function Workspace({
                   : "text-slate-500 hover:text-slate-900"
               )}
               onClick={() => onAdjust({ fit: "cover" }, true)}
-            >
-              铺满
-            </button>
+            >{t("adjust.fitCover")}</button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">缩放</span>
+            <span className="text-xs text-slate-500">{t("adjust.scale")}</span>
             <input
               data-action="replace-scale"
               type="range"
@@ -411,11 +405,9 @@ export default function Workspace({
             data-action="adjust-reset"
             className="cursor-pointer text-xs text-slate-500 hover:text-slate-900"
             onClick={() => onAdjust({ fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
-          >
-            重置
-          </button>
+          >{t("adjust.reset")}</button>
           <div className="h-4 w-px bg-border" />
-          <span className="text-xs text-slate-400">拖动图片调整位置</span>
+          <span className="text-xs text-slate-400">{t("adjust.hint")}</span>
         </div>
       )}
 
@@ -437,10 +429,10 @@ export default function Workspace({
             <TextBoxLayer boxes={textBoxes} />
           </div>
           <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-slate-900/75 px-2.5 py-0.5 text-[11.5px] font-semibold text-white backdrop-blur">
-            ◀ 替换前 · 原始页面
+            {t("cmp.corner.before")}
           </span>
           <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-emerald-600/85 px-2.5 py-0.5 text-[11.5px] font-semibold text-white backdrop-blur">
-            替换后 · 新图片 ▶
+            {t("cmp.corner.after")}
           </span>
           <div className="pointer-events-none absolute top-0 bottom-0 z-[5] w-0" style={{ left: `${pos}%` }}>
             <div className="absolute top-0 bottom-0 -left-[1.5px] w-[3px] bg-white shadow-[0_0_6px_rgba(15,23,42,0.5)]" />
@@ -476,7 +468,7 @@ export default function Workspace({
                 !isAfter ? "bg-white text-slate-900" : "text-slate-300"
               )}
             >
-              替换前
+              {t("toggle.before")}
             </button>
             <button
               onClick={() => setIsAfter(true)}
@@ -485,7 +477,7 @@ export default function Workspace({
                 isAfter ? "bg-emerald-600 text-white" : "text-slate-300"
               )}
             >
-              替换后
+              {t("toggle.after")}
             </button>
           </div>
         </div>
@@ -496,8 +488,8 @@ export default function Workspace({
         <div className="flex items-center justify-center gap-6">
           {(
             [
-              { kind: "before", label: "替换前 · 原始页面", src: compare.before },
-              { kind: "after", label: "替换后 · 新图片", src: compare.after.dataUrl },
+              { kind: "before", label: t("cmp.before"), src: compare.before },
+              { kind: "after", label: t("cmp.after"), src: compare.after.dataUrl },
             ] as const
           ).map(({ kind, label, src }) => (
             <div key={kind} className="flex flex-col items-center gap-2">
@@ -577,7 +569,7 @@ export default function Workspace({
         <div className="absolute top-4 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/95 p-1 shadow-lg backdrop-blur">
           <Tabs value={compare.mode} onValueChange={(v) => onCompareMode(v as CompareMode)}>
             <TabsList className="h-8 gap-0.5 rounded-lg p-0.5">
-              {MODES.map(({ value, label, icon: Icon }) => (
+              {MODES.map(({ value, icon: Icon }) => (
                 <TabsTrigger
                   key={value}
                   value={value}
@@ -585,7 +577,7 @@ export default function Workspace({
                   className="h-7 gap-1.5 rounded-md px-3 text-xs"
                 >
                   <Icon className="size-3.5" />
-                  {label}
+                  {t(`cmp.${value}`)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -595,10 +587,24 @@ export default function Workspace({
             onClick={onExitCompare}
             data-action="cmp-exit"
             className="grid size-7 cursor-pointer place-items-center rounded-md text-slate-500 hover:bg-accent hover:text-slate-900"
-            title="退出对比 (Esc)"
+            title={t("cmp.exit")}
           >
             <X className="size-4" />
           </button>
+        </div>
+      )}
+
+      {/* 对比模式操作提示 */}
+      {compare && (
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-[5] -translate-x-1/2 rounded-full bg-slate-900/70 px-3.5 py-1 text-xs text-slate-200 backdrop-blur">
+          {compare.mode === "toggle" ? (
+            <>
+              {t("cmp.hint.toggle.pre")} <span className="font-medium text-white">{t("key.space")}</span>{" "}
+              {t("cmp.hint.toggle.post")}
+            </>
+          ) : (
+            t(`cmp.hint.${compare.mode}`)
+          )}
         </div>
       )}
 
@@ -609,7 +615,7 @@ export default function Workspace({
             className="grid size-7 cursor-pointer place-items-center rounded-full text-base hover:bg-white/15"
             onClick={() => onZoom(zoom - 0.25)}
             data-action="zoom-out"
-            title="缩小"
+            title={t("zoom.out")}
           >
             −
           </button>
@@ -617,7 +623,7 @@ export default function Workspace({
             className="min-w-[52px] cursor-pointer text-center text-xs tabular-nums hover:text-white"
             onClick={() => onZoom(1)}
             data-action="zoom-reset"
-            title="恢复 100%"
+            title={t("zoom.reset")}
           >
             {Math.round(zoom * 100)}%
           </button>
@@ -625,7 +631,7 @@ export default function Workspace({
             className="grid size-7 cursor-pointer place-items-center rounded-full text-base hover:bg-white/15"
             onClick={() => onZoom(zoom + 0.25)}
             data-action="zoom-in"
-            title="放大"
+            title={t("zoom.in")}
           >
             +
           </button>

@@ -35,6 +35,8 @@
 - 🔒 **100% local** — parsing, editing and export all happen in your browser with
   [pdf.js](https://github.com/mozilla/pdf.js) + [pdf-lib](https://github.com/Hopding/pdf-lib).
   **No file ever leaves your machine.**
+- 🌐 **Bilingual UI** — English / 简体中文, one click in the toolbar; follows your
+  browser language by default.
 - 🤖 **Agent-friendly** — a complete machine-readable operation guide ships at
   [`public/llm.txt`](public/llm.txt), so AI agents can drive every feature via stable
   `data-action` selectors.
@@ -110,7 +112,7 @@ operate the full product without reading the source.
 
 - [ ] Batch page replacement
 - [ ] Page rotation & custom page sizes
-- [ ] i18n (zh-CN / en UI)
+- [x] i18n (zh-CN / en UI)
 - [ ] OCR-friendly flattened export options
 
 ## 🤝 Contributing

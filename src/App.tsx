@@ -9,6 +9,7 @@ import { pdfjsLib } from "@/lib/pdfSetup";
 import { blankPageDataUrl, renderPageToDataUrl } from "@/lib/render";
 import { buildReplacedPdf } from "@/lib/exportPdf";
 import { loadImage, readAsDataUrl } from "@/lib/image";
+import { I18nProvider, useI18n } from "@/i18n";
 import type {
   CompareMode,
   PageEntry,
@@ -224,10 +225,12 @@ function reducer(state: State, action: Action): State {
 
 export default function App() {
   return (
-    <TooltipProvider>
-      <EditorApp />
-      <Toaster position="bottom-center" richColors />
-    </TooltipProvider>
+    <I18nProvider>
+      <TooltipProvider>
+        <EditorApp />
+        <Toaster position="bottom-center" richColors />
+      </TooltipProvider>
+    </I18nProvider>
   );
 }
 
@@ -242,6 +245,7 @@ function EditorApp() {
   const filePdfRef = useRef<HTMLInputElement>(null);
   const fileImageRef = useRef<HTMLInputElement>(null);
   const loadTokenRef = useRef(0);
+  const { t } = useI18n();
 
   const hasDoc = !!state.doc;
   const currentEntry = state.pageList[state.current];
@@ -256,7 +260,7 @@ function EditorApp() {
   const openDocument = useCallback(async (bytes: Uint8Array, fileName: string) => {
     const token = ++loadTokenRef.current;
     setDocLoading(true);
-    setLoadingText("正在解析 PDF…");
+    setLoadingText(t("loading.parse"));
     try {
       // pdf.js 会转移 ArrayBuffer,传入副本
       const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
@@ -278,30 +282,30 @@ function EditorApp() {
             : blankPageDataUrl(entry.w, entry.h, 460);
         dispatch({ type: "thumb", id: entry.id, dataUrl: url });
       }
-      toast.success(`已打开「${fileName}」,共 ${doc.numPages} 页`);
+      toast.success(t("toast.opened", { name: fileName, n: doc.numPages }));
     } catch (err) {
       console.error(err);
       if (token === loadTokenRef.current) {
         setDocLoading(false);
-        toast.error("PDF 解析失败,请换一个文件试试");
+        toast.error(t("toast.parseFailed"));
       }
     }
-  }, []);
+  }, [t]);
 
   const handlePdfFile = useCallback(
     async (file: File | undefined) => {
       if (!file) return;
       if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
-        toast.error("请选择 PDF 文件");
+        toast.error(t("toast.needPdf"));
         return;
       }
-      if (Object.keys(state.replacements).length > 0 && !confirm("打开新文档将丢弃当前所有替换操作,确定继续?")) {
+      if (Object.keys(state.replacements).length > 0 && !confirm(t("confirm.openNew"))) {
         return;
       }
       const bytes = new Uint8Array(await file.arrayBuffer());
       await openDocument(bytes, file.name);
     },
-    [openDocument, state.replacements]
+    [openDocument, state.replacements, t]
   );
 
   /* -- 替换 / 恢复 / 撤销 -- */
@@ -309,11 +313,11 @@ function EditorApp() {
     async (file: File | undefined) => {
       if (!file) return;
       if (!file.type.startsWith("image/")) {
-        toast.error("请选择图片文件(PNG / JPG / WebP)");
+        toast.error(t("toast.needImage"));
         return;
       }
       if (file.size > 20 * 1024 * 1024) {
-        toast.error("图片超过 20MB,原型阶段暂不支持");
+        toast.error(t("toast.imageTooLarge"));
         return;
       }
       try {
@@ -334,13 +338,13 @@ function EditorApp() {
             offsetY: 0,
           },
         });
-        toast.success(`第 ${state.current + 1} 页已替换为图片「${file.name}」,可拖动图片或用底部工具调整`);
+        toast.success(t("toast.replaced", { page: state.current + 1, name: file.name }));
       } catch (err) {
         console.error(err);
-        toast.error("图片读取失败");
+        toast.error(t("toast.imageReadFailed"));
       }
     },
-    [currentEntry]
+    [currentEntry, t]
   );
 
   /* -- 替换图排版调整(contain/cover、缩放、拖动位置) -- */
@@ -355,8 +359,8 @@ function EditorApp() {
     if (!(currentEntry.id in state.replacements)) return;
     setCompare(null);
     dispatch({ type: "revert", id: currentEntry.id });
-    toast.info(`第 ${state.current + 1} 页已恢复为原始内容`);
-  }, [currentEntry, state.current, state.replacements]);
+    toast.info(t("toast.reverted", { page: state.current + 1 }));
+  }, [currentEntry, state.current, state.replacements, t]);
 
   /* -- 新建页面 / 拖拽排序 -- */
   const handleAddPage = useCallback(() => {
@@ -364,40 +368,40 @@ function EditorApp() {
     setSelectedTextId(null);
     setEditingTextId(null);
     dispatch({ type: "addPage", afterIdx: state.current });
-    toast.success(`已在第 ${state.current + 1} 页后插入空白页`);
-  }, [state.current]);
+    toast.success(t("toast.pageAdded", { page: state.current + 1 }));
+  }, [state.current, t]);
 
   const handleMovePage = useCallback(
     (from: number, to: number, pushUndo: boolean) => {
       if (from === to) return;
       setCompare(null);
       dispatch({ type: "movePage", from, to, pushUndo });
-      toast.success(`页面已从第 ${from + 1} 页移动到第 ${to + 1} 页`);
+      toast.success(t("toast.pageMoved", { from: from + 1, to: to + 1 }));
     },
-    []
+    [t]
   );
 
   const handleDeletePage = useCallback(() => {
     if (state.pageList.length <= 1) {
-      toast.info("至少需要保留一页");
+      toast.info(t("toast.keepOnePage"));
       return;
     }
     // 二次确认:该页的替换图与文字会一并删除
-    if (!confirm(`确定删除第 ${state.current + 1} 页?该页的替换图与文字将一并移除(可通过撤销恢复)。`)) {
+    if (!confirm(t("confirm.deletePage", { page: state.current + 1 }))) {
       return;
     }
     setCompare(null);
     setSelectedTextId(null);
     setEditingTextId(null);
     dispatch({ type: "deletePage", idx: state.current });
-    toast.success(`已删除第 ${state.current + 1} 页(⌘Z 可恢复)`);
-  }, [state.current, state.pageList.length]);
+    toast.success(t("toast.pageDeleted", { page: state.current + 1 }));
+  }, [state.current, state.pageList.length, t]);
 
   const handleUndo = useCallback(() => {
     if (state.past.length === 0) return;
     dispatch({ type: "undo" });
-    toast.info("已撤销上一步操作");
-  }, [state.past]);
+    toast.info(t("toast.undone"));
+  }, [state.past, t]);
 
   /* -- 文字框 -- */
   const handleAddText = useCallback(() => {
@@ -444,9 +448,9 @@ function EditorApp() {
       setSelectedTextId(null);
       setEditingTextId(null);
       dispatch({ type: "removeText", id });
-      toast.info("已删除文字框(⌘Z 可恢复)");
+      toast.info(t("toast.textDeleted"));
     },
-    []
+    [t]
   );
 
   /* -- 导出 -- */
@@ -468,7 +472,7 @@ function EditorApp() {
   const handleExport = useCallback(async () => {
     if (!state.pdfBytes || (replacedCount === 0 && state.textBoxes.length === 0)) return;
     setDocLoading(true);
-    setLoadingText("正在生成 PDF…");
+    setLoadingText(t("loading.export"));
     try {
       const bytes = await buildReplacedPdf(
         state.pdfBytes,
@@ -485,14 +489,14 @@ function EditorApp() {
       a.download = `${base}-替换版.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("已导出替换后的 PDF");
+      toast.success(t("toast.exported"));
     } catch (err) {
       console.error(err);
-      toast.error("导出失败,请查看控制台");
+      toast.error(t("toast.exportFailed"));
     } finally {
       setDocLoading(false);
     }
-  }, [state.pdfBytes, state.pageList, state.replacements, state.textBoxes, state.fileName, replacedCount, getPageRender]);
+  }, [state.pdfBytes, state.pageList, state.replacements, state.textBoxes, state.fileName, replacedCount, getPageRender, t]);
 
   /* -- 对比(在预览区原地展示) -- */
   const openCompare = useCallback(
@@ -501,7 +505,7 @@ function EditorApp() {
       const rep = entry ? state.replacements[entry.id] : undefined;
       if (!rep || !state.doc || !entry) return;
       setDocLoading(true);
-      setLoadingText("正在准备对比…");
+      setLoadingText(t("loading.compare"));
       try {
         const before =
           state.fulls[entry.id] ??
@@ -512,12 +516,12 @@ function EditorApp() {
         setCompare({ index: idx, mode, before, after: rep });
       } catch (err) {
         console.error(err);
-        toast.error("对比准备失败");
+        toast.error(t("toast.compareFailed"));
       } finally {
         setDocLoading(false);
       }
     },
-    [state.current, state.doc, state.fulls, state.pageList, state.replacements]
+    [state.current, state.doc, state.fulls, state.pageList, state.replacements, t]
   );
 
   // 切页即退出对比,避免画面与新选中页不一致
@@ -584,7 +588,7 @@ function EditorApp() {
         handlePdfFile(file);
       } else if (file.type.startsWith("image/")) {
         if (!state.doc) {
-          toast.info("请先打开 PDF 文档");
+          toast.info(t("toast.keepPdfFirst"));
           return;
         }
         handleImageFile(file);

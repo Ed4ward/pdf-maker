@@ -1,4 +1,5 @@
 import { Image as ImageIcon } from "lucide-react";
+import { useI18n } from "@/i18n";
 
 interface StatusBarProps {
   fileName: string | null;
@@ -9,26 +10,23 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({ fileName, current, total, replacedCount, zoom }: StatusBarProps) {
+  const { t } = useI18n();
   return (
     <footer className="flex h-[34px] shrink-0 items-center gap-4 border-t bg-background px-4 text-xs text-slate-500">
       <span>
-        文档:<span className="font-medium text-slate-800">{fileName ?? "—"}</span>
+        {t("status.doc")} <span className="font-medium text-slate-800">{fileName ?? "—"}</span>
       </span>
       {total > 0 && (
-        <span>
-          第 <span className="font-medium text-slate-800">{current + 1}</span> / {total} 页
-        </span>
+        <span>{t("status.pageOf", { cur: current + 1, total })}</span>
       )}
       <span className="flex-1" />
       {replacedCount > 0 && (
         <span className="flex items-center gap-1 font-medium text-emerald-600">
           <ImageIcon className="size-3" />
-          已替换 <span className="font-semibold">{replacedCount}</span> 页
+          {t("status.replaced", { n: replacedCount })}
         </span>
       )}
-      <span>
-        缩放 <span className="font-medium text-slate-800">{Math.round(zoom * 100)}%</span>
-      </span>
+      <span>{t("status.zoom", { z: Math.round(zoom * 100) })}</span>
     </footer>
   );
 }
