@@ -1,10 +1,10 @@
 <div align="center">
 
-  <img src="public/logo.svg" width="88" alt="PDF Editor logo" />
+  <img src="public/logo.svg" width="88" alt="PDFPress logo" />
 
-  # PDF 编辑器
+  # PDF 书坊 PDFPress
 
-  **纯浏览器端的 PDF 页面编辑工具 —— 用图片替换任意页面、添加文字、增删与拖拽排序页面,并支持替换前后对比。**
+  **纯浏览器端的 PDF 阅读与页面加工工坊 —— 用图片替换任意页面、添加文字、旋转改尺寸、增删与拖拽排序页面,并支持替换前后对比。**
 
   [![Live Demo](https://img.shields.io/website?url=https%3A%2F%2Fed4ward.github.io%2Fpdf-maker%2F&label=demo&color=brightgreen)](https://ed4ward.github.io/pdf-maker/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)

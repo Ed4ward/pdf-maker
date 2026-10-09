@@ -1,3 +1,5 @@
+import { useI18n } from '@/i18n';
+
 /**
  * 品牌图标 v2(原创设计):
  * 两页错位叠放 —— 后页半透明(原页面),前页实白(替换后的新页),
@@ -5,8 +7,9 @@
  * 元素少、对比强,小尺寸(16px favicon)下依然清晰。
  */
 export default function BrandMark({ className }: { className?: string }) {
+    const { t } = useI18n();
   return (
-    <svg viewBox="0 0 48 48" className={className} aria-label="PDF编辑器" role="img">
+    <svg viewBox="0 0 48 48" className={className} aria-label={t("app.name")} role="img">
       <defs>
         <linearGradient id="pdfmaker-brand-g" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#4F8EF7" />

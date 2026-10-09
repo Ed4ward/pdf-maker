@@ -1,11 +1,11 @@
 <div align="center">
 
-  <img src="public/logo.svg" width="88" alt="PDF Editor logo" />
+  <img src="public/logo.svg" width="88" alt="PDFPress logo" />
 
-  # PDF Editor
+  # PDFPress
 
-  **Edit PDF pages right in your browser — replace any page with an image, add text,
-  insert / reorder / delete pages, and compare before & after.**
+  **Read and craft PDFs right in your browser — replace any page with an image, add
+  text, rotate & resize, insert / reorder / delete pages, and compare before & after.**
 
   [![Live Demo](https://img.shields.io/website?url=https%3A%2F%2Fed4ward.github.io%2Fpdf-maker%2F&label=demo&color=brightgreen)](https://ed4ward.github.io/pdf-maker/)
   [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
