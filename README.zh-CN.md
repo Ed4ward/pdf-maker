@@ -86,6 +86,12 @@ public/
   logo.svg robots.txt sitemap.xml
 ```
 
+## 🧩 ZCode 插件
+
+随仓库附带同源的 **ZCode UI Plugin**([`zcode-plugin/`](zcode-plugin/)):在 ZCode 桌面端侧栏中
+使用同一套编辑模型 —— Agent 通过 MCP 工具驱动,你在可视化面板中预览、微调与对比,确认后导出回工作区。
+安装与集成步骤见 [`zcode-plugin/README.md`](zcode-plugin/README.md)。
+
 ## 🤖 自动化与 Agent
 
 `public/llm.txt` 以稳定的选择器(`[data-action]`)、交互语义与验证信号描述了全部功能,

@@ -104,6 +104,14 @@ public/
   logo.svg robots.txt sitemap.xml
 ```
 
+## 🧩 ZCode Plugin
+
+A companion **ZCode UI Plugin** ships in [`zcode-plugin/`](zcode-plugin/): the same editing
+model (image replacement, text, page management) runs inside the ZCode Desktop sidebar —
+the agent drives it through MCP tools while you preview, tweak and compare in a visual
+panel, then export back into the workspace. See
+[`zcode-plugin/README.md`](zcode-plugin/README.md) for install and integration steps.
+
 ## 🤖 Automation & Agents
 
 `public/llm.txt` documents every feature with stable `[data-action]` selectors,

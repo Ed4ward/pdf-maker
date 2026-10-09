@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF 编辑器</title>
+    <style>
+      /*__EDITOR_CSS__*/
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <input class="path" id="pathInput" type="text" placeholder="工作区内 PDF 路径,如 docs/report.pdf" />
+      <button class="btn" id="loadBtn">打开</button>
+      <input class="path" id="exportPath" type="text" placeholder="导出路径,如 docs/out.pdf" />
+      <label class="check"><input type="checkbox" id="overwrite" />覆盖</label>
+      <button class="btn ghost" id="exportBtn">导出 PDF</button>
+      <label class="check"><input type="checkbox" id="cmpToggle" />对比</label>
+    </div>
+
+    <div class="main">
+      <div class="preview-wrap" id="previewWrap">
+        <div class="preview-box" id="previewBox">
+          <canvas id="baseCanvas" width="320" height="452"></canvas>
+          <canvas id="editCanvas" width="320" height="452"></canvas>
+          <div class="cmp-divider" id="cmpDivider"></div>
+        </div>
+      </div>
+
+      <div class="side">
+        <h3>页面</h3>
+        <div class="nav">
+          <button class="btn ghost" id="movePrevBtn" title="前移">←</button>
+          <span id="pageNav">—</span>
+          <button class="btn ghost" id="moveNextBtn" title="后移">→</button>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="addPageBtn" style="flex: 1">+ 空白页</button>
+          <button class="btn ghost" id="deletePageBtn" style="flex: 1">删除页</button>
+        </div>
+
+        <h3>替换图</h3>
+        <input type="text" id="replaceInput" placeholder="图片路径" />
+        <div class="row">
+          <button class="btn ghost" id="replaceBtn" style="flex: 1">替换此页</button>
+          <button class="btn ghost" id="clearRepBtn" style="flex: 1">清除</button>
+        </div>
+        <div class="seg">
+          <button id="fitContain">适应</button>
+          <button id="fitCover">铺满</button>
+        </div>
+        <input type="range" id="scaleSlider" min="0.5" max="3" step="0.05" value="1" />
+        <span style="font-size: 11px; color: var(--text2)">缩放 <span id="scaleVal">100%</span></span>
+
+        <h3>文字</h3>
+        <button class="btn" id="addTextBtn">添加文字</button>
+        <div class="text-list" id="textList"></div>
+      </div>
+    </div>
+
+    <div class="thumbs" id="thumbs"></div>
+    <div class="statusbar" id="msg"></div>
+
+    <script>
+      /*__EDITOR_JS__*/
+    </script>
+  </body>
+</html>

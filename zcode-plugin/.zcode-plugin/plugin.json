@@ -1,0 +1,41 @@
+{
+  "name": "pdf-editor",
+  "version": "0.1.0",
+  "description": "在 ZCode 侧栏编辑工作区 PDF:用图片替换页面、添加文字、新建/删除/拖拽排序,确认后导出新 PDF。全部在本地处理。",
+  "author": {
+    "name": "Ed4ward"
+  },
+  "license": "MIT",
+  "skills": "skills",
+  "mcpServers": {
+    "pdf-editor": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${ZCODE_PLUGIN_ROOT}/dist/server.mjs"],
+      "cwd": "${ZCODE_PROJECT_DIR}",
+      "env": {
+        "ZCODE_WORKSPACE_ROOT": "${ZCODE_PROJECT_DIR}",
+        "ZCODE_PLUGIN_DATA": "${ZCODE_PLUGIN_DATA}"
+      }
+    }
+  },
+  "ui": {
+    "surfaces": [
+      {
+        "id": "pdf-editor",
+        "title": {
+          "zh-CN": "PDF 编辑器",
+          "en-US": "PDF Editor"
+        },
+        "icon": "file-text",
+        "server": "pdf-editor",
+        "resourceUri": "ui://pdf-editor/editor.html",
+        "availability": "session"
+      }
+    ]
+  },
+  "description_i18n": {
+    "en": "Edit workspace PDFs in the ZCode sidebar: replace pages with images, add text, insert/reorder/delete pages, then export a new PDF. Processed fully locally.",
+    "zh-CN": "在 ZCode 侧栏编辑工作区 PDF:用图片替换页面、添加文字、新建/删除/拖拽排序,确认后导出新 PDF。全部在本地处理。"
+  }
+}
