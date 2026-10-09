@@ -3,6 +3,7 @@ import {
   Columns2,
   Download,
   FolderOpen,
+  Focus,
   Github,
   ImagePlus,
   Languages,
@@ -88,6 +89,8 @@ interface TopBarProps {
   onCompare: () => void;
   onUndo: () => void;
   onExport: () => void;
+  /** 进入 Zen 模式;不传则不显示该按钮(ZCode 插件面板无此功能) */
+  onToggleZen?: () => void;
 }
 
 export default function TopBar({
@@ -110,6 +113,7 @@ export default function TopBar({
   onCompare,
   onUndo,
   onExport,
+  onToggleZen,
 }: TopBarProps) {
   const { t, locale, setLocale } = useI18n();
 
@@ -315,8 +319,18 @@ export default function TopBar({
           >
             <BookOpen className="size-4" />
           </ToggleGroupItem>
-        </ToggleGroup>
-      </Group>
+          </ToggleGroup>
+          {onToggleZen && (
+            <IconAction
+              action="toggle-zen"
+              label={t("topbar.zen")}
+              hint={t("topbar.zen.hint")}
+              icon={<Focus />}
+              onClick={onToggleZen}
+              disabled={!hasDoc}
+            />
+          )}
+        </Group>
 
       <Group>
         <IconAction

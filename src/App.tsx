@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
+import { X } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TopBar from "@/components/TopBar";
 import Workspace, { type CompareView, type SpreadPage } from "@/components/Workspace";
@@ -46,6 +47,8 @@ interface State {
   zoom: number;
   /** 预览视图模式:单页 / 双页并排(视图偏好,不属于文档编辑,不进撤销栈) */
   viewMode: ViewMode;
+  /** Zen 模式:隐藏顶栏/缩略图/状态栏的沉浸预览(视图偏好,不进撤销栈) */
+  zen: boolean;
 }
 
 const initialState: State = {
@@ -61,6 +64,7 @@ const initialState: State = {
   past: [],
   zoom: 1,
   viewMode: "single",
+  zen: false,
 };
 
 type Action =
@@ -79,7 +83,8 @@ type Action =
   | { type: "removeText"; id: string }
   | { type: "undo" }
   | { type: "zoom"; value: number }
-  | { type: "viewMode"; value: ViewMode };
+  | { type: "viewMode"; value: ViewMode }
+  | { type: "zen"; value: boolean };
 
 const snapshot = (s: State): Snapshot => ({
   pageList: s.pageList,
@@ -225,6 +230,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, zoom: Math.min(3, Math.max(0.25, action.value)) };
     case "viewMode":
       return state.viewMode === action.value ? state : { ...state, viewMode: action.value };
+    case "zen":
+      return state.zen === action.value ? state : { ...state, zen: action.value };
   }
 }
 
@@ -596,6 +603,11 @@ function EditorApp() {
       if (compare) return; // 对比模式下由 Workspace 处理
       if (editingTextId) return; // 文字编辑中不响应页面级快捷键
       if (!state.doc) return;
+      if (e.key === "Escape" && state.zen) {
+        e.preventDefault();
+        dispatch({ type: "zen", value: false });
+        return;
+      }
       const last = state.pageList.length - 1;
       const go = (idx: number) => dispatch({ type: "select", idx: Math.min(last, Math.max(0, idx)) });
       // 双页模式下 PageUp/PageDown 一次翻一个对页,←/→ 始终逐页
@@ -625,7 +637,7 @@ function EditorApp() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [compare, editingTextId, state.doc, state.current, state.pageList.length, state.viewMode, handleUndo]);
+  }, [compare, editingTextId, state.doc, state.current, state.pageList.length, state.viewMode, state.zen, handleUndo]);
 
   /* -- 拖拽 -- */
   const handleDropFile = useCallback(
@@ -665,28 +677,31 @@ function EditorApp() {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden">
-      <TopBar
-        hasDoc={hasDoc}
-        canRevert={!!currentReplacement}
-        canCompare={!!currentReplacement}
-        canUndo={state.past.length > 0}
-        canExport={hasDoc && (replacedCount > 0 || state.textBoxes.length > 0)}
-        canDeletePage={hasDoc && state.pageList.length > 1}
-        hasEdits={replacedCount > 0 || state.textBoxes.length > 0}
-        currentPage={state.current + 1}
-        viewMode={state.viewMode}
-        onViewMode={(value) => dispatch({ type: "viewMode", value })}
-        onOpen={() => filePdfRef.current?.click()}
-        onAddPage={handleAddPage}
-        onAddText={handleAddText}
-        onReplace={() => fileImageRef.current?.click()}
-        onRevert={handleRevert}
-        onDeletePage={handleDeletePage}
-        onCompare={() => (compare ? setCompare(null) : openCompare())}
-        onUndo={handleUndo}
-        onExport={handleExport}
-      />
+    <div className="relative flex h-dvh flex-col overflow-hidden">
+      {!state.zen && (
+        <TopBar
+          hasDoc={hasDoc}
+          canRevert={!!currentReplacement}
+          canCompare={!!currentReplacement}
+          canUndo={state.past.length > 0}
+          canExport={hasDoc && (replacedCount > 0 || state.textBoxes.length > 0)}
+          canDeletePage={hasDoc && state.pageList.length > 1}
+          hasEdits={replacedCount > 0 || state.textBoxes.length > 0}
+          currentPage={state.current + 1}
+          viewMode={state.viewMode}
+          onViewMode={(value) => dispatch({ type: "viewMode", value })}
+          onOpen={() => filePdfRef.current?.click()}
+          onAddPage={handleAddPage}
+          onAddText={handleAddText}
+          onReplace={() => fileImageRef.current?.click()}
+          onRevert={handleRevert}
+          onDeletePage={handleDeletePage}
+          onCompare={() => (compare ? setCompare(null) : openCompare())}
+          onUndo={handleUndo}
+          onExport={handleExport}
+          onToggleZen={() => dispatch({ type: "zen", value: !state.zen })}
+        />
+      )}
 
       <main className="flex min-h-0 flex-1 flex-col md:flex-row">
         <Workspace
@@ -712,7 +727,7 @@ function EditorApp() {
           onOpen={() => filePdfRef.current?.click()}
           onDropFile={handleDropFile}
         />
-        {hasDoc && (
+        {hasDoc && !state.zen && (
           <ThumbPanel
             entries={state.pageList}
             thumbs={state.thumbs}
@@ -725,15 +740,30 @@ function EditorApp() {
         )}
       </main>
 
-      <StatusBar
-        fileName={state.fileName}
-        current={state.current}
-        total={state.pageList.length}
-        replacedCount={replacedCount}
-        zoom={state.zoom}
-        onPrevPage={() => dispatch({ type: "select", idx: Math.max(0, state.current - 1) })}
-        onNextPage={() => dispatch({ type: "select", idx: Math.min(state.pageList.length - 1, state.current + 1) })}
-      />
+      {!state.zen && (
+        <StatusBar
+          fileName={state.fileName}
+          current={state.current}
+          total={state.pageList.length}
+          replacedCount={replacedCount}
+          zoom={state.zoom}
+          onPrevPage={() => dispatch({ type: "select", idx: Math.max(0, state.current - 1) })}
+          onNextPage={() => dispatch({ type: "select", idx: Math.min(state.pageList.length - 1, state.current + 1) })}
+        />
+      )}
+
+      {state.zen && (
+        <button
+          data-action="exit-zen"
+          type="button"
+          title={t("zen.exit")}
+          aria-label={t("zen.exit")}
+          onClick={() => dispatch({ type: "zen", value: false })}
+          className="absolute top-3 right-3 z-40 grid size-8 cursor-pointer place-items-center rounded-full bg-slate-900/55 text-white/85 opacity-30 shadow-lg backdrop-blur transition-opacity hover:bg-slate-900/80 hover:opacity-100"
+        >
+          <X className="size-4" />
+        </button>
+      )}
 
       <input
         ref={filePdfRef}

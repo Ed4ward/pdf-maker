@@ -31,6 +31,9 @@
 - 📑 **Single / two-page view** — preview one page at a time or the current two-page
   spread side by side; toggle in the toolbar. Turn pages with ←/→, PageUp/PageDown
   (a full spread in two-page view), Home/End, or the status-bar buttons.
+- 🌙 **Zen mode** — one click hides the toolbar, thumbnails and status bar for a
+  distraction-free preview; page-turning and zoom keep working, and `Esc` (or the
+  corner button) brings the UI back.
 - 🔍 **Before / after comparison** — verify edits in three modes: **side-by-side**,
   **slider wipe**, and **toggle**, rendered in-place in the preview area.
 - ↩️ **Snapshot undo** — every edit (replacements, layout adjustments, text, page order)
@@ -72,7 +75,7 @@ npm run dev        # start dev server → http://localhost:5173
 3. **Replace** — select a page, hit **Replace with image** (or drop an image onto the
    preview), then fine-tune with contain / cover, zoom and panning. Toggle **single /
    two-page view** in the toolbar to see a spread; in two-page view a drop replaces the
-   card it lands on.
+   card it lands on. Toggle **Zen mode** when you want the preview alone (Esc to exit).
 4. **Text** — click **Add text**, double-click to edit, drag to move; pick size and color
    from the floating toolbar.
 5. **Compare** — hit **Compare** to verify the change side-by-side, with a slider, or by
