@@ -40,7 +40,7 @@ npm run smoke       # stdio 冒烟:握手 + 工具清单 + 打开/替换/加文�
 ZCODE=/path/to/zcode-repo
 # 用主仓库 CLI(或已安装的 zcode 命令),指向本插件构建出的本地市场:
 node $ZCODE/apps/zcode-cli/packages/cli/dist/zcode.cjs plugins marketplace add \
-  /abs/path/to/pdf-maker/zcode-plugin/dist/marketplace --scope user
+  /abs/path/to/pdf-maker/packages/zcode-plugin/dist/marketplace --scope user
 node $ZCODE/apps/zcode-cli/packages/cli/dist/zcode.cjs plugins install pdf-editor@pdf-maker-local --scope user
 node $ZCODE/apps/zcode-cli/packages/cli/dist/zcode.cjs plugins enable pdf-editor@pdf-maker-local --scope user
 ```
