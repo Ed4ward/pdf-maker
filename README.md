@@ -118,6 +118,9 @@ operate the full product without reading the source.
 Issues and PRs are welcome! For big changes please open an issue first to discuss what
 you'd like to change.
 
+AI-assisted contributions: please read [`AGENTS.md`](AGENTS.md) first — it defines the
+project's coding rules, architecture constraints and Conventional Commits policy.
+
 ## 📄 License
 
 Distributed under the [MIT License](LICENSE). © 2026 Ed4ward

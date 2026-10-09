@@ -100,6 +100,9 @@ public/
 
 欢迎提 Issue 与 PR!较大改动请先开 Issue 讨论后再动手。
 
+使用 AI 辅助贡献:请先阅读 [`AGENTS.md`](AGENTS.md) —— 其中定义了本项目的编码规范、
+架构约束与 Conventional Commits 提交政策。
+
 ## 📄 开源协议
 
 基于 [MIT License](LICENSE) 开源。© 2026 Ed4ward
