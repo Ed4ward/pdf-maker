@@ -1,90 +1,123 @@
-# PDF编辑器 · 产品原型 v0.1
+<div align="center">
 
-Web 端 PDF 编辑功能的**产品原型与设计稿**。本期只做一个编辑能力:**用图片替换指定页**,并支持**替换前后内容对比**。
+  <img src="public/logo.svg" width="88" alt="PDF Editor logo" />
 
-## 技术方案
+  # PDF Editor
 
-- **Vite + React 19 + TypeScript**,UI 组件基于 **shadcn/ui**(Tailwind CSS v4 + Radix),图标 lucide-react,通知 sonner
-- **纯前端实现**:PDF 解析/渲染用 pdf.js,替换结果导出用 pdf-lib,全部在浏览器内完成,**无后端服务**(Node 仅作为 Vite 开发/构建工具链)
+  **Edit PDF pages right in your browser — replace any page with an image, add text,
+  insert / reorder / delete pages, and compare before & after.**
 
-## 运行方式
+  [![Live Demo](https://img.shields.io/website?url=https%3A%2F%2Fed4ward.github.io%2Fpdf-maker%2F&label=demo&color=brightgreen)](https://ed4ward.github.io/pdf-maker/)
+  [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+  ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
+  ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
+  ![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)
+
+  [**🌍 Live Demo**](https://ed4ward.github.io/pdf-maker/) · [简体中文](README.zh-CN.md) · [Report Issue](https://github.com/Ed4ward/pdf-maker/issues)
+
+</div>
+
+---
+
+## ✨ Features
+
+- 🖼 **Replace pages with images** — swap any page's content with a picture. Choose
+  **contain** (fit with letterbox) or **cover** (fill & crop), fine-tune with zoom and
+  drag-to-pan, all rendered exactly as exported.
+- ✍️ **Add text to pages** — insert text boxes, double-click to edit, drag to position,
+  adjust font size and color. Supports CJK text via high-resolution composition.
+- 📄 **Page management** — insert A4 blank pages, drag thumbnails to reorder, delete pages
+  (with confirmation). Replacement images and text boxes follow their page automatically.
+- 🔍 **Before / after comparison** — verify edits in three modes: **side-by-side**,
+  **slider wipe**, and **toggle**, rendered in-place in the preview area.
+- ↩️ **Snapshot undo** — every edit (replacements, layout adjustments, text, page order)
+  is one ⌘Z away.
+- 🔒 **100% local** — parsing, editing and export all happen in your browser with
+  [pdf.js](https://github.com/mozilla/pdf.js) + [pdf-lib](https://github.com/Hopding/pdf-lib).
+  **No file ever leaves your machine.**
+- 🤖 **Agent-friendly** — a complete machine-readable operation guide ships at
+  [`public/llm.txt`](public/llm.txt), so AI agents can drive every feature via stable
+  `data-action` selectors.
+
+## 🚀 Getting Started
+
+**Prerequisites:** Node.js ≥ 20
 
 ```bash
+git clone https://github.com/Ed4ward/pdf-maker.git
+cd pdf-maker
 npm install
-npm run dev        # 开发模式,默认 http://localhost:5173
-npm run build      # 类型检查 + 生产构建 (dist/)
-npm run preview    # 预览生产构建
+npm run dev        # start dev server → http://localhost:5173
 ```
 
-打开后为空状态:把 PDF 拖进窗口,或点「打开 PDF」选择本地文件,即可开始编辑。
+| Command           | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| `npm run dev`     | Start the dev server with HMR                     |
+| `npm run build`   | Type-check + production build to `dist/`          |
+| `npm run preview` | Preview the production build locally              |
+| `npm run deploy`  | Build and publish to GitHub Pages (`gh-pages`)    |
 
-## 页面结构(PPT 式布局)
+## 📖 Usage
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│ 顶部工具栏: 打开PDF   [添加文字][用图片替换此页][恢复原页][替换对比][撤销][导出PDF]  │
-├────────────────────────────────────────────┬─────────────────┤
-│                                            │  页面(缩略图)     │
-│           左侧:当前页大图预览                │  ┌───────────┐  │
-│           (点缩略图切换、底部缩放条、          │  │ 1  ▢      │  │
-│            拖图片到预览区=替换当前页)          │  │ 2  ▢      │  │
-│                                            │  │ 3  ▢ 🏷已替换│ │
-│                                            │  │ 4  ▢      │  │
-├────────────────────────────────────────────┴─────────────────┤
-│ 状态栏: 文档名 · 第x/y页 · 已替换n页 · 缩放%                      │
-└──────────────────────────────────────────────────────────────┘
-```
+1. **Open** — drop a PDF anywhere, or click **Open PDF**.
+2. **Pages** — insert blank pages with **+**, drag thumbnails to reorder, delete with the
+   trash button (asks for confirmation).
+3. **Replace** — select a page, hit **Replace with image** (or drop an image onto the
+   preview), then fine-tune with contain / cover, zoom and panning.
+4. **Text** — click **Add text**, double-click to edit, drag to move; pick size and color
+   from the floating toolbar.
+5. **Compare** — hit **Compare** to verify the change side-by-side, with a slider, or by
+   toggling (shortcuts `1` / `2` / `3`, `Esc` to exit).
+6. **Export** — click **Export PDF** to download the edited document.
+   Replacements stay vector; pages containing text are composed at high resolution.
 
-## 核心交互流程
+## 🧱 Tech Stack
 
-1. **选页**:右侧缩略图面板单击任意页 → 左侧大图预览同步切换(←/→ 方向键亦可)。
-2. **新建 / 排序 / 删除**:「新建页面」在当前页后插入一张 A4 空白页;**直接拖拽缩略图即可调整页面顺序**(蓝色虚线指示落点,替换图与文字框跟随页面移动);工具栏垃圾桶按钮**删除当前页**(二次确认,其替换图与文字一并移除,至少保留一页),所有操作都进撤销栈。
-3. **替换**:选中某页 → 点「用图片替换此页」选一张图片;或**把图片直接拖到当前页面上**,页面出现蓝色虚线高亮和「松开鼠标,替换当前页」提示后松开即替换 → 该页预览与缩略图立即更新,缩略图左上角出现绿色「已替换」角标,状态栏计数 +1。拖拽 PDF 文件进入则提示打开文档。
-4. **调整替换图**:替换后预览区底部出现调整工具条——**适应(contain)/ 铺满(cover)** 二选一,**缩放滑杆**(50%~300%),以及「重置」;**直接在页面上拖动图片可调整位置**。所有调整实时同步到缩略图、对比视图和导出结果,并记入撤销栈(⌘Z 可回退)。
-5. **添加文字**:点工具栏「添加文字」在当前页中央插入文本框 → **双击编辑内容**(Enter 换行,Esc 或点击空白处提交)、**拖动定位**;选中后顶部出现文字工具条:**字号 A−/A+**、**四种颜色**(深灰/蓝/红/白)、**删除**(Delete 键亦可)。文字与图片排版一样同步到缩略图、对比"替换后"视图和导出。
-6. **对比**:替换后「替换对比」按钮激活,点击后**在左侧预览区原地进入对比模式**(顶部悬浮条切换模式、✕ 或 Esc 退出),三种模式(快捷键 1/2/3):
-   - **左右并排**:左「替换前 · 原始页面」右「替换后 · 新图片」;
-   - **滑动对比**:拖动竖直分隔线,同一版面内逐区域揭示前后内容;
-   - **切换查看**:底部胶囊按钮(或空格键)在前后之间淡入淡出切换。
-7. **回退**:「恢复原页」撤掉当前页替换;「撤销」(⌘Z)按快照回退,图片替换、排版调整、文字增删改均覆盖。
-8. **导出**:「导出 PDF」应用全部编辑后产出 `-替换版.pdf`:仅图片替换的页走矢量绘制;含文字的页将 原始页面 + 替换图 + 文字 在画布上合成为高分辨率位图(与预览所见一致,中文无需嵌入字体)。
+| Layer    | Choice                                       |
+| -------- | -------------------------------------------- |
+| UI       | React 19 + TypeScript + Tailwind CSS v4 + shadcn/ui |
+| Build    | Vite 7                                       |
+| PDF      | pdf.js (rendering) · pdf-lib (export)        |
+| Toasts   | sonner                                       |
 
-## 设计要点
-
-- 替换是不可见的破坏性操作,所以**对比是本功能的核心信任组件**:三种模式覆盖"整体感受(并排)/ 细节核对(滑动)/ 快速切换(切换)"三类核对心理。
-- 所有可逆操作(替换、恢复)都进撤销栈;打开新文档前若已有替换,弹确认,防误丢工作。
-- 替换过的页面在缩略图、预览页签、状态栏三处均有状态标识,保证任何视图下都能看出"哪些页动过"。
-
-## 代码结构
+## 📁 Project Structure
 
 ```
 src/
-  App.tsx                  # 状态(reducer + 快照撤销)与主编排
+  App.tsx                # state (reducer + snapshot undo) & composition
   components/
-    TopBar.tsx             # 顶部工具栏(PPT 式纯图标按钮组)
-    Workspace.tsx          # 左侧预览区(缩放/拖拽/原地对比/图片与文字调整)
-    ThumbPanel.tsx         # 右侧缩略图面板
-    StatusBar.tsx          # 底部状态栏
-    TextBoxLayer.tsx       # 文字框图层(可编辑/只读两种形态)
-    ReplacedImage.tsx      # 替换图排版渲染(contain/cover/缩放/偏移)
-    ui/                    # shadcn/ui 基础组件(button/dialog/tabs/tooltip)
+    TopBar.tsx           # icon toolbar, grouped
+    Workspace.tsx        # preview area: zoom, drag&drop, compare, adjustments
+    ThumbPanel.tsx       # thumbnail rail: insert / reorder / delete
+    CompareModal.tsx     # in-place compare (side / slider / toggle)
+    ReplacedImage.tsx    # replacement-image layout renderer
+    TextBoxLayer.tsx     # text-box layer (editable / read-only)
+    ui/                  # shadcn/ui primitives
   lib/
-    pdfSetup.ts            # pdf.js 初始化(worker)
-    render.ts              # 页面 → dataURL 渲染
-    exportPdf.ts           # 应用替换/文字并导出 PDF
-    image.ts               # 图片读写工具
+    pdfSetup.ts render.ts exportPdf.ts image.ts
+public/
+  llm.txt                # agent operation guide
+  logo.svg robots.txt sitemap.xml
 ```
 
-## 已知限制(原型阶段刻意不做)
+## 🤖 Automation & Agents
 
-- 示例文档与演示入口已移除,启动即为空状态;含文字的页导出为画布栅格化位图(标准 PDF 字体不含中文字形,栅格化保证中文所见即所得);
-- 不处理页面旋转(Rotation)、超长大页面;替换图强制 contain 适配;
-- 不做服务端、协作、草稿保存;图片上限 20MB;
-- 导出为整文档重写,未做增量优化。
+`public/llm.txt` documents every feature with stable `[data-action]` selectors,
+interaction semantics and assertion signals — point your browser agent at it and it can
+operate the full product without reading the source.
 
-## 真实实现建议(后续开发)
+## 🗺 Roadmap
 
-- **替换策略**建议做成可选项:铺满裁切 / contain 适配 / 保持图片原尺寸并改页面尺寸。
-- **大文件**:服务端处理(Python PyMuPDF 或 Node 端 pdf-lib),替换任务异步化并生成新版本号,缩略图由服务端统一渲染下发。
-- **校验**:图片格式/分辨率下限(建议替换图短边 ≥ 页面对应像素,避免糊)、超页告警;导出前二次确认清单(列出被替换页)。
-- **扩展**:在"单页替换"跑通后,同一框架可平移到插入空白页、删除页、旋转页、页序拖拽等页面级操作。
+- [ ] Batch page replacement
+- [ ] Page rotation & custom page sizes
+- [ ] i18n (zh-CN / en UI)
+- [ ] OCR-friendly flattened export options
+
+## 🤝 Contributing
+
+Issues and PRs are welcome! For big changes please open an issue first to discuss what
+you'd like to change.
+
+## 📄 License
+
+Distributed under the [MIT License](LICENSE). © 2026 Ed4ward
