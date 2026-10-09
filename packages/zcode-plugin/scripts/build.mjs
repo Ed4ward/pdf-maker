@@ -1,16 +1,28 @@
 import { build } from "esbuild";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const require2 = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const webSrc = resolve(root, "../../src");
 const dist = join(root, "dist");
 await rm(dist, { recursive: true, force: true });
 
-// ---- 页面:打包 TS + CSS,内联为单文件 editor.html ----
+// ---- Tailwind:与 Web 端同一套样式体系(扫描面板 + Web 组件源码) ----
+const cliPkg = require2.resolve("@tailwindcss/cli/package.json");
+const cliJs = join(dirname(cliPkg), "dist/index.mjs");
+const cssOut = join(dist, "app.css");
+execFileSync(process.execPath, [cliJs, "-i", join(root, "ui/app.css"), "-o", cssOut], {
+  stdio: "inherit",
+});
+
+// ---- 页面:React 组件复用 Web 端实现,内联为单文件 editor.html ----
 const ui = await build({
   metafile: true,
-  entryPoints: [join(root, "ui/main.ts")],
+  entryPoints: [join(root, "ui/main.tsx")],
   bundle: true,
   format: "iife",
   platform: "browser",
@@ -18,10 +30,12 @@ const ui = await build({
   minify: true,
   write: false,
   outdir: join(dist, "ui"),
+  jsx: "automatic",
+  alias: { "@": webSrc },
   define: { "process.env.NODE_ENV": '"production"' },
 });
 const js = ui.outputFiles.find((f) => f.path.endsWith(".js")).text;
-const css = ui.outputFiles.find((f) => f.path.endsWith(".css"))?.text ?? "";
+const css = await readFile(cssOut, "utf8");
 // 转义结束标签,避免提前闭合 <script>/<style>
 const escape = (text, tag) => text.replace(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`);
 const template = await readFile(join(root, "ui/editor.html"), "utf8");
@@ -48,8 +62,6 @@ const server = await build({
   },
 });
 await writeFile(join(pluginDist, "dist/server.mjs"), server.outputFiles[0].text);
-
-await cp(join(root, ".zcode-plugin"), join(pluginDist, ".zcode-plugin"), { recursive: true });
 
 // 本地市场清单:ZCode CLI 可直接 marketplace add 该目录
 const marketplace = {
