@@ -85,6 +85,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "status.pageOf": "第 {cur} / {total} 页",
     "status.replaced": "已替换 {n} 页",
     "status.zoom": "缩放 {z}%",
+    "page.prev": "上一页",
+    "page.next": "下一页",
 
     "text.toolbar": "文字",
     "text.fontDec.title": "减小字号",
@@ -213,6 +215,8 @@ const messages: Record<Locale, Record<string, string>> = {
     "status.pageOf": "Page {cur} / {total}",
     "status.replaced": "{n} page(s) replaced",
     "status.zoom": "Zoom {z}%",
+    "page.prev": "Previous page",
+    "page.next": "Next page",
 
     "text.toolbar": "Text",
     "text.fontDec.title": "Smaller font",

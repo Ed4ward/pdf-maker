@@ -29,7 +29,8 @@
 - 📄 **Page management** — insert A4 blank pages, drag thumbnails to reorder, delete pages
   (with confirmation). Replacement images and text boxes follow their page automatically.
 - 📑 **Single / two-page view** — preview one page at a time or the current two-page
-  spread side by side; toggle in the toolbar.
+  spread side by side; toggle in the toolbar. Turn pages with ←/→, PageUp/PageDown
+  (a full spread in two-page view), Home/End, or the status-bar buttons.
 - 🔍 **Before / after comparison** — verify edits in three modes: **side-by-side**,
   **slider wipe**, and **toggle**, rendered in-place in the preview area.
 - ↩️ **Snapshot undo** — every edit (replacements, layout adjustments, text, page order)

@@ -596,18 +596,36 @@ function EditorApp() {
       if (compare) return; // 对比模式下由 Workspace 处理
       if (editingTextId) return; // 文字编辑中不响应页面级快捷键
       if (!state.doc) return;
+      const last = state.pageList.length - 1;
+      const go = (idx: number) => dispatch({ type: "select", idx: Math.min(last, Math.max(0, idx)) });
+      // 双页模式下 PageUp/PageDown 一次翻一个对页,←/→ 始终逐页
+      const step = state.viewMode === "double" ? 2 : 1;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         handleUndo();
       } else if (e.key === "ArrowLeft" && state.current > 0) {
-        dispatch({ type: "select", idx: state.current - 1 });
-      } else if (e.key === "ArrowRight" && state.current < state.pageList.length - 1) {
-        dispatch({ type: "select", idx: state.current + 1 });
+        e.preventDefault();
+        go(state.current - 1);
+      } else if (e.key === "ArrowRight" && state.current < last) {
+        e.preventDefault();
+        go(state.current + 1);
+      } else if (e.key === "PageUp") {
+        e.preventDefault();
+        go(state.current - step);
+      } else if (e.key === "PageDown") {
+        e.preventDefault();
+        go(state.current + step);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        go(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        go(last);
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [compare, editingTextId, state.doc, state.current, state.pageList.length, handleUndo]);
+  }, [compare, editingTextId, state.doc, state.current, state.pageList.length, state.viewMode, handleUndo]);
 
   /* -- 拖拽 -- */
   const handleDropFile = useCallback(
@@ -713,6 +731,8 @@ function EditorApp() {
         total={state.pageList.length}
         replacedCount={replacedCount}
         zoom={state.zoom}
+        onPrevPage={() => dispatch({ type: "select", idx: Math.max(0, state.current - 1) })}
+        onNextPage={() => dispatch({ type: "select", idx: Math.min(state.pageList.length - 1, state.current + 1) })}
       />
 
       <input
