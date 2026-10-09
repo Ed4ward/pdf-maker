@@ -6,79 +6,128 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
 
 【是什么】
 浏览器端 PDF 页面编辑器原型。当前能力:打开 PDF → 新建空白页 / 拖拽缩略图排序 →
+旋转页面(±90°)/ 自定义页面尺寸(A4/A3/A5/Letter/Legal/正方形/任意 pt)→
 用图片替换指定页(contain/cover、缩放、拖动调位)→ 添加文字框(编辑/移动/字号/颜色)→
-替换前后原地对比 → 撤销 → 导出新 PDF。纯前端实现(pdf.js 渲染 + pdf-lib 导出),无后端。
+替换前后原地对比 → 撤销 → 导出新 PDF。全部操作集中在预览区下方的「页面操作栏」
+(随宽度换行、不遮挡页面、移动端可用):撤销 | 页面操作 | 上下文调整 | 缩放 |
+视图滑块(单页/双页)/ Zen / 打开 / 导出(右对齐)。顶栏仅保留标题行
+(品牌 / 语言 / GitHub)。纯前端实现(pdf.js 渲染 + pdf-lib 导出),无后端。
 
 【运行】
 - 开发服务:npm run dev → http://localhost:5173
 - 生产构建:npm run build && npm run preview(默认 4173)
 - 启动为空状态(无文档):拖入 PDF 文件,或先对隐藏输入 input[accept="application/pdf"]
   setFiles 打开文档后才能编辑
-- 无持久化:刷新页面即重置全部编辑状态
+- 本地会话持久化:文档字节 + 页面列表 + 替换图 + 文字框 + 当前页/视图/缩放
+  防抖写入 IndexedDB(库名 pdfmaker / store session);刷新或重开页面自动还原,
+  并出现 toast「已还原上次编辑会话」;打开新文档会覆盖旧会话。撤销历史不入库;
+  位图缓存不入库(还原后自动重渲)
 
 【DOM 结构与选择器约定】
-- header           顶部工具栏:全部为纯图标按钮,每个按钮带唯一 data-action
-- main section     左侧预览工作区(页面卡片、缩放条、各类悬浮工具条)
+- header           顶部标题栏(品牌 + 语言切换 / GitHub),无编辑操作
+- main section     左侧预览工作区:上部为预览舞台(页面卡片、对比视图),
+                   下部为常驻「页面操作栏」(不遮挡页面,随宽度换行,移动端可用)
+- 页面操作栏       从左到右:撤销 | 替换图片 / 添加文字 | 旋转±90° / 页面尺寸 /
+                   新建页 / 删除页 | 上下文区(选中文字框 → 文字调整;当前页有
+                   替换图 → 适应/铺满 + 缩放滑杆 + 重置 + 恢复原页 + 对比)|
+                   缩放 −/%/+ | 右对齐:视图滑块 view-single / view-double /
+                   toggle-zen(ToggleGroup 三段滑块,data-state="on" 为选中,Zen 段
+                   进入时同时请求浏览器全屏)+ open-pdf + export-pdf(带「导出」
+                   文字的主按钮);
+                   所有控件带稳定 data-action;删除页 / 有编辑时打开新文档会弹确认对话框
 - aside            右侧缩略图面板
-- footer           状态栏
+- footer           状态栏(仅已打开文档时显示)
 - 隐藏文件输入:input[accept="application/pdf"](打开 PDF)
                input[accept="image/*"](替换图片)
   → agent 可直接对这两个 input 执行 setFileInputFiles / setInputFiles,
     change 事件会自动触发对应流程(无需点击按钮)
 - 页面文字框:[data-textbox="<id>"](contenteditable 编辑态同元素)
-- 对比模式 tab:[role="tab"][data-action^="cmp-"]
-- Zen 模式下 header / aside / footer 均从 DOM 移除,仅保留 main section 预览区
-  与右上角悬浮退出按钮 [data-action="exit-zen"]
+- 对比模式 tab:[role="tab"][data-action^="cmp-"](对比模式的模式切换悬浮条
+  仍在预览区顶部)
+- Zen 模式下 header / aside / footer 均从 DOM 移除,仅保留 main section(预览舞台
+  与页面操作栏)与右上角悬浮退出按钮 [data-action="exit-zen"]
+
+【键盘快捷键】
+- ⌘Z/Ctrl+Z 撤销  ⌘⌫/Ctrl+Backspace 删除当前页(弹确认)
+- 注意:⌘O / ⌘S 等浏览器自有快捷键不占用,交还 Chrome
+- N 新建空白页   T 添加文字   R 用图片替换此页(弹文件选择)  S 页面尺寸  O 打开 PDF
+  (有未保存编辑时先弹确认)
+- ⇧R 恢复原页(当前页有替换图时)
+- [ 向左旋转 90°  ] 向右旋转 90°   C 替换对比
+- 1 单页预览   2 双页预览   Z Zen 模式(Esc 退出)
+- +/= 放大   - 缩小   0 恢复 100%
+- 翻页:←/→ 逐页,PageUp/PageDown(双页模式翻对页),Home/End 首末页
+- 注意:焦点在 input/textarea/contenteditable(文字编辑态、页面尺寸输入等)时
+  全部快捷键不响应;对比模式下仅响应对比快捷键(1/2/3、空格、Esc)
 
 【功能目录:data-action → 操作 → 结果】
-1. open-pdf      click 后弹文件选择;或对 input[accept="application/pdf"] setFiles
-2. add-text      click → 当前页中央插入文本框「输入文字」并直接进入编辑态
-                 (全选,直接键入即替换);Esc / 点击空白处 = 提交
-3. add-page      click → 在当前页后插入一张 A4 空白页并选中它(缩略图带「新建」角标)
-4. replace-image click 弹文件选择;或对 input[accept="image/*"] setFiles
-                 → 替换当前选中页;也可把图片文件拖拽到预览区
+说明:全部动作位于预览区下方的「页面操作栏」,多数动作有等价快捷键
+(见【键盘快捷键】)。
+1. open-pdf      click(页面操作栏右端)弹文件选择(有未保存编辑时先弹确认);
+                 或对 input[accept="application/pdf"] setFiles
+2. add-text      click(页面操作栏)→ 当前页中央插入文本框「输入文字」并直接进入
+                 编辑态(全选,直接键入即替换);Esc / 点击空白处 = 提交
+3. add-page      click(页面操作栏)→ 在当前页后插入一张 A4 空白页并选中它
+                 (缩略图带「新建」角标)
+4. replace-image click(页面操作栏)弹文件选择;或对 input[accept="image/*"]
+                 setFiles → 替换当前选中页;也可把图片文件拖拽到预览区
 5. move-page     拖拽缩略图排序:在 aside [data-action="select-page"] 上发起 HTML5
                  drag(dragstart → dragover 目标 → drop),落到目标位置并记入撤销栈。
                  注意:CDP 合成鼠标事件不触发 HTML5 DnD,需 Input.dispatchDragEvent
                  或注入 DragEvent(dispatchEvent,携带 DataTransfer)
-6. delete-page   click → 弹出 AlertDialog 二次确认([data-action="confirm-delete"]
-                 确认,[data-action="cancel-delete"] 取消);确认后删除当前页
-                 (其替换图与文字框一并移除,⌘Z 可恢复);仅剩一页时按钮禁用
+6. delete-page   click(页面操作栏)→ 弹出 AlertDialog 二次确认
+                 ([data-action="confirm-delete"] 确认,[data-action="cancel-delete"]
+                 取消);确认后删除当前页(其替换图与文字框一并移除,⌘Z 可恢复);
+                 仅剩一页时按钮禁用
 7. toggle-locale click → 切换界面语言 中文 ↔ English(顶栏右侧;localStorage 持久化,
                  默认跟随浏览器语言);所有界面文案、toast 与 confirm 均随语言切换
-8. fit-contain   click → 替换图改为"适应"(完整放入,白底补空,不裁切)
-9. fit-cover     click → 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
-10. replace-scale Radix Slider(0.5~3,step 0.05),值为相对 contain/cover
-                 基准的倍率;onValueCommit(松手/键盘提交)时并入撤销栈。
+8. fit-contain   click(页面操作栏上下文区,当前页有替换图时显示)→ 替换图改为
+                 "适应"(完整放入,白底补空,不裁切)
+9. fit-cover     click(同上)→ 替换图改为"铺满"(等比放大填满页面,裁掉超出部分)
+10. replace-scale Radix Slider(0.5~3,step 0.05,页面操作栏上下文区),值为相对
+                 contain/cover 基准的倍率;onValueCommit(松手/键盘提交)时并入撤销栈。
                  自动化:聚焦 thumb 后用方向键调整,或直接派发键盘事件
 11. adjust-reset  click → 替换图重置为 contain + 100% + 居中
 12. select-page   click(thumb item,data-page-index="当前顺序位置,0 起")→ 切换当前页;
                  键盘 ←/→ 亦可;切页会退出对比模式并取消文字选中
-13. toggle-compare click → 预览区原地进入对比模式(再点一次退出),默认左右并排
+13. toggle-compare click(页面操作栏上下文区,当前页有替换图时显示)→ 预览区原地进入对比模式(再点一次退出),默认左右并排
 14. cmp-side / cmp-slider / cmp-toggle  对比三模式 tab;快捷键 1 / 2 / 3;
     cmp-slider 拖动分隔线逐区域对比;cmp-toggle 按空格或底部胶囊按钮翻转前后;
     cmp-exit 或 Esc 退出对比
-15. text-font-dec / text-font-inc  选中文字框后可用;字号 ×0.8 / ×1.25(上限0.3、下限0.02)
+15. text-font-dec / text-font-inc  选中文字框后在页面操作栏上下文区可用;字号 ×0.8 / ×1.25(上限0.3、下限0.02)
 16. text-color   data-color="#1e293b|#2563eb|#dc2626|#ffffff" 四个色点,click 换色
 17. text-delete  click 删除选中文字框;选中态下按 Delete / Backspace 同效
-18. zoom-in / zoom-out / zoom-reset  页面视图缩放(0.25~3 倍,reset=适应窗口100%)
-19. undo         click 或 ⌘Z;快照式撤销,覆盖页面增删排序/图片替换/排版调整/文字增删改
-20. revert-page  click → 移除当前页的图片替换(文字框不受影响)
-21. export-pdf   click → 按当前页面顺序重建文档并浏览器下载「<原文件名>-替换版.pdf」
-                 headless 环境请先配置下载目录;无任何编辑时按钮禁用
+18. zoom-in / zoom-out / zoom-reset  页面视图缩放(0.25~3 倍,reset=适应窗口100%),位于页面操作栏行尾
+19. undo         click(页面操作栏,加号按钮右侧)或 ⌘Z;快照式撤销,覆盖页面增删排序/图片替换/旋转/改尺寸/排版调整/文字增删改
+20. revert-page  click(页面操作栏上下文区)→ 移除当前页的图片替换(文字框不受影响)
+21. export-pdf   click(页面操作栏右端「导出」主按钮)→ 按当前页面顺序重建文档并
+                 浏览器下载「<原文件名>-替换版.pdf」;headless 环境请先配置下载目录;
+                 无任何编辑时按钮禁用
 22. open-github  click → 新标签页打开本项目 GitHub 仓库(顶栏右侧外链 <a>,非编辑功能)
-23. view-single / view-double  顶栏单页/双页预览切换(ToggleGroup,未打开文档时禁用);
-    双页按 (1,2)(3,4)… 对页并排展示当前页所在对页,预览卡片带 data-page-index 与
-    data-active;点击另一页即选中它;图片拖到哪张卡片就替换哪页;⌘Z 不受影响
-    (视图偏好不属于文档编辑,不产生撤销快照)
+23. view-single / view-double  页面操作栏右端的分段滑块(单页/双页预览,未打开文档时
+    禁用,data-state="on" 为选中);双页按 (1,2)(3,4)… 对页并排展示当前页所在对页,
+    预览卡片带 data-page-index 与 data-active;点击另一页即选中它;图片拖到哪张卡片
+    就替换哪页;⌘Z 不受影响(视图偏好不属于文档编辑,不产生撤销快照)
 24. prev-page / next-page  状态栏页码两侧的翻页按钮(首页/末页时对应按钮禁用);
     键盘翻页:←/→ 逐页,PageUp/PageDown 翻页(双页模式一次翻一个对页),
     Home/End 跳首/末页;文字编辑态与对比模式下不响应(对比模式有独立快捷键)
-25. toggle-zen / exit-zen  顶栏 Zen 模式按钮(未打开文档时禁用;view-single/view-double
-    同组)→ 进入沉浸预览:隐藏 header/aside/footer,只保留预览工作区(翻页快捷键、
-    缩放条、对比等 Workspace 内交互照常)。退出:click 右上角悬浮
+25. toggle-zen / exit-zen  页面操作栏视图滑块第三段(Zen,未打开文档时禁用)→ 进入
+    沉浸预览:隐藏 header/aside/footer 与页面操作栏并请求浏览器全屏(需用户手势,
+    失败静默降级),只保留预览舞台(翻页快捷键照常)。退出:click 右上角悬浮
     [data-action="exit-zen"] 或按 Esc;文字编辑态与对比模式下 Esc 先提交文字 /
     退出对比,再按一次退出 Zen。视图偏好,不产生撤销快照
+26. rotate-left / rotate-right  页面操作栏旋转按钮 → 当前页原始内容逆/顺时针旋转 90°
+    (⌘Z 可恢复);旋转后显示宽高互换,预览/缩略图/导出同步。语义:只旋转页面
+    原始内容,替换图与文字框保持在显示坐标系(位置不随旋转变化)
+27. page-size  页面操作栏按钮 → 打开「页面尺寸」对话框:
+    - size-preset(data-preset="a4|a3|a5|letter|legal|square")click 即应用到当前页
+      并关闭(Letter=612×792,Legal=612×1008,正方形=当前宽高均值;预设自动跟随
+      当前页横竖方向)
+    - size-w / size-h 自定义宽高输入(pt,20~14400),Enter 或
+      size-apply(应用到本页)/ size-apply-all(应用到全部页面)提交
+    - size-reset 恢复该页原始尺寸(新建空白页即 A4)
+    改尺寸后原始内容等比 contain 居中(白边补空),替换图与文字按归一化坐标自动
+    适配新页面;均为文档编辑,⌘Z 可恢复
 
 【拖拽交互(可选路径)】
 - 拖图片文件悬停预览区:当前页出现蓝色虚线框与「松开鼠标,替换当前页」提示,松开即替换
@@ -86,8 +135,15 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
 - HTML5 拖拽无法用 CDP 直接合成,自动化时请走隐藏 input 的 setFiles 路径
 
 【交互语义】
-- 页面模型:每页为 PageEntry{id, srcIndex(原始页码或 null=新建空白页), w, h},
-  pageList 顺序即文档顺序;替换图与文字框均以页面 id 关联,插入/拖拽重排后自动跟随
+- 页面模型:每页为 PageEntry{id, srcIndex(原始页码或 null=新建空白页), w, h,
+  rotation?(0/90/180/270,缺省 0), origW?/origH?(原始尺寸,供重置)},
+  pageList 顺序即文档顺序;替换图与文字框均以页面 id 关联,插入/拖拽重排后自动跟随。
+  w/h 为最终显示尺寸:旋转 90/270 时自动互换,改尺寸后为自定义值
+- 页面渲染缓存按「id + 尺寸 + 旋转」为键,旋转/改尺寸/撤销后位图自动重新渲染,
+  无需手动失效
+- 旋转只作用于页面原始内容;替换图与文字框位于显示坐标系,不随旋转变化
+- 改尺寸 = 页面盒子变为自定义 w×h,原始内容等比 contain 居中(白边补空);
+  替换图(fit/scale/offset)与文字框(x/y)为归一化坐标,自动适配新尺寸
 - 新建空白页固定 A4(595.28×841.89 pt),缩略图与页码下方带「新建」标记
 - 替换图排版参数(存于每页替换记录):
     fit: contain | cover
@@ -101,17 +157,20 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
   ([data-action="confirm-open-new"] 继续 / [data-action="cancel-open-new"] 取消);拖拽路径则使用原生 confirm
 
 【验证信号(断言用)】
+- 视图滑块选中态:页面操作栏内 [data-action="view-single"][data-state="on"]
 - 状态栏 footer 文本:`文档:<名>` | `第 x / y 页` | `已替换 n 页`(n>0 才出现)| `缩放 %`
 - 缩略图角标:aside [data-thumb-badge] 存在 = 该页已被替换
 - 对比模式判定:DOM 中存在 [role="tab"][data-action^="cmp-"] 即处于对比态
-- Zen 模式判定:DOM 中不存在 header/aside/footer,且存在 [data-action="exit-zen"]
+- Zen 模式判定:已打开文档时 DOM 中不存在 header/aside/footer,且存在
+  [data-action="exit-zen"](注意:未打开文档的空状态本身只有 header,
+  无 footer/aside,不算 Zen)
 - 文字框存在:[data-textbox];编辑态即该元素 contenteditable="plaintext-only"
 - 操作反馈 toast:[data-sonner-toast](成功/撤销/错误均有文案)
 - 按钮可用性:disabled 属性(如未替换时 toggle-compare / revert-page / export 禁用)
 
 【已知限制】
-- 含文字的页导出时整体栅格化(高分辨率位图,支持中文),纯图片替换页保持矢量绘制
-- 不处理页面 Rotation;替换图拖动偏移范围 -1~1;图片上限 20MB
-- 含文字的页导出时整体栅格化(高分辨率位图),纯图片替换页保持矢量绘制
+- 含文字的页导出时整体栅格化(高分辨率位图,支持中文);纯图片替换、旋转、
+  改尺寸的页在无文字时保持矢量绘制(旋转=叠加 /Rotate,改尺寸=等比缩放内容流)
+- 替换图拖动偏移范围 -1~1;图片上限 20MB
 - 无协作/草稿保存;刷新丢状态
 ================================================================================
