@@ -23,7 +23,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
 
@@ -56,8 +55,6 @@ function IconAction({ action, label, hint, icon, onClick, disabled }: IconAction
 function Group({ children }: { children: ReactNode }) {
   return <div className="flex items-center gap-0.5 px-1">{children}</div>;
 }
-
-const Divider = () => <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-6" />;
 
 interface TopBarProps {
   hasDoc: boolean;
@@ -104,14 +101,24 @@ export default function TopBar({
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center border-b bg-background px-2 md:px-4">
-      {/* 品牌绝对定位在左侧(移动端只显示 logo),按钮组居中、放不下时横向滑动 */}
-      <div className="absolute left-2 z-10 flex items-center gap-2 bg-background pr-2 md:left-4 md:pr-3">
-        <BrandMark className="size-8 shrink-0 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
-        <span className="hidden text-[15px] font-semibold md:inline">PDF编辑器</span>
+    <header className="relative z-20 shrink-0 border-b bg-background">
+      {/* 第一行:品牌 + 语言切换 */}
+      <div className="flex h-11 items-center justify-between px-2 md:px-4">
+        <div className="flex items-center gap-2.5">
+          <BrandMark className="size-8 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
+          <span className="text-[15px] font-semibold">PDF编辑器</span>
+        </div>
+        <button
+          data-action="toggle-locale"
+          title="Language / 语言"
+          onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
+          className="cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900"
+        >
+          {t("lang.toggle")}
+        </button>
       </div>
-
-      <div className="scrollbar-none mx-auto flex w-max items-center gap-0.5 overflow-x-auto py-1 md:gap-1.5">
+      {/* 第二行:操作按钮居中,放不下时横向滑动 */}
+      <div className="scrollbar-none mx-auto flex w-max items-center gap-0.5 overflow-x-auto px-2 pb-1.5 md:gap-1.5">
       <Group>
         {hasEdits ? (
           <AlertDialog>
@@ -152,8 +159,6 @@ export default function TopBar({
         )}
       </Group>
 
-      <Divider />
-
       <Group>
         <IconAction
           action="add-text"
@@ -180,8 +185,6 @@ export default function TopBar({
           disabled={!hasDoc}
         />
       </Group>
-
-      <Divider />
 
       <Group>
         <IconAction
@@ -241,8 +244,6 @@ export default function TopBar({
         </AlertDialog>
       </Group>
 
-      <Divider />
-
       <Group>
         <IconAction
           action="toggle-compare"
@@ -253,8 +254,6 @@ export default function TopBar({
           disabled={!canCompare}
         />
       </Group>
-
-      <Divider />
 
       <Group>
         <IconAction
@@ -267,15 +266,6 @@ export default function TopBar({
         />
       </Group>
       </div>
-
-      <button
-        data-action="toggle-locale"
-        title="Language / 语言"
-        onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
-        className="absolute right-2 z-10 cursor-pointer rounded-md bg-background px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900 md:right-4"
-      >
-        {t("lang.toggle")}
-      </button>
     </header>
   );
 }
