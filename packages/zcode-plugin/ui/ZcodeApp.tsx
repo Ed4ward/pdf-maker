@@ -18,7 +18,7 @@ import { I18nProvider, useI18n } from "@/i18n";
 import type { CompareMode, PageEntry, Replacement as WebReplacement, TextBoxPatch } from "@/types";
 import type { DocState as ServerDocState } from "../src/contract.ts";
 import { sourceResourceUri } from "../src/contract.ts";
-import { api, onDocState, onTheme, readResourceBase64 } from "./bridge";
+import { api, onBridgeStatus, onDocState, onTheme, readResourceBase64, type BridgeStatus } from "./bridge";
 import { compositePage, loadSource, renderBase, drawReplacement, loadImage } from "./pdf";
 
 /**
@@ -83,6 +83,12 @@ function ZcodeEditor() {
   const [overwrite, setOverwrite] = useState(false);
   const renderToken = useRef(0);
   const thumbToken = useRef(0);
+  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>("connecting");
+
+  useEffect(() => {
+    const off = onBridgeStatus(setBridgeStatus);
+    return () => void off();
+  }, []);
 
   const hasDoc = !!snapshot;
   const currentEntry = snapshot?.pages[current] ?? null;
@@ -386,6 +392,7 @@ function ZcodeEditor() {
             </main>
             {loadingOverlay}
             <PathDialog />
+            <BridgeBadge status={bridgeStatus} />
             <Toaster position="bottom-center" richColors />
           </div>
         </TooltipProvider>
@@ -589,6 +596,7 @@ function ZcodeEditor() {
           </DialogContent>
         </Dialog>
 
+        <BridgeBadge status={bridgeStatus} />
         <Toaster position="bottom-center" richColors />
       </div>
     </TooltipProvider>
@@ -597,6 +605,27 @@ function ZcodeEditor() {
   function suggestExport(name: string) {
     return name.replace(/\.pdf$/i, "") + "-edited.pdf";
   }
+}
+
+
+function BridgeBadge({ status }: { status: BridgeStatus }) {
+  if (status === "connected") return null;
+  const text =
+    status === "failed"
+      ? "无法连接宿主:当前 ZCode 可能不支持插件面板,请在对话中让 Agent 直接操作"
+      : "面板连接宿主中…";
+  return (
+    <div
+      className={
+        "fixed bottom-2 left-2 z-[200] rounded-full px-3 py-1 text-xs shadow " +
+        (status === "failed"
+          ? "bg-red-600 text-white"
+          : "bg-slate-900/80 text-slate-100")
+      }
+    >
+      {text}
+    </div>
+  );
 }
 
 export default function ZcodePluginApp() {

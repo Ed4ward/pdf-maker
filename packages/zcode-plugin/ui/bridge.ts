@@ -5,7 +5,50 @@ import { DocError } from "../src/contract.ts";
 const app = new App({ name: "pdf-editor", version: "0.1.0" }, {}, { autoResize: false });
 
 let connection: Promise<void> | undefined;
-export const ready = () => (connection ??= app.connect());
+export type BridgeStatus = "connecting" | "connected" | "failed";
+let status: BridgeStatus = "connecting";
+const statusListeners = new Set<(s: BridgeStatus) => void>();
+export function onBridgeStatus(listener: (s: BridgeStatus) => void) {
+  statusListeners.add(listener);
+  listener(status);
+  return () => statusListeners.delete(listener);
+}
+function setStatus(s: BridgeStatus) {
+  status = s;
+  statusListeners.forEach((l) => l(s));
+}
+
+/** 连接宿主;8 秒未完成视为宿主不支持面板桥接 */
+export const ready = () =>
+  (connection ??= Promise.race([
+    app.connect().then(() => {
+      setStatus("connected");
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new DocError("bridge_timeout", "连接宿主超时(8s)")), 8000),
+    ),
+  ])).catch((e) => {
+    setStatus("failed");
+    throw e;
+  });
+
+function withTimeout<T>(p: Promise<T>, ms = 30000, what = "工具调用"): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new DocError(
+              "bridge_timeout",
+              `${what}超时(${Math.round(ms / 1000)}s)——若反复出现,说明当前 ZCode 版本不支持插件面板,请在对话中直接让 Agent 操作`,
+            ),
+          ),
+        ms,
+      ),
+    ),
+  ]);
+}
 
 export function onDocState(listener: (state: DocState) => void) {
   // 工具结果统一携带完整文档状态;保留最新结果供挂载后消费
@@ -27,8 +70,12 @@ async function call<T = Record<string, unknown>>(
   name: string,
   args: Record<string, unknown> = {},
 ): Promise<T> {
-  await ready();
-  const result = await app.callServerTool({ name, arguments: args });
+  await withTimeout(ready(), 8000, "连接宿主");
+  const result = await withTimeout(
+    app.callServerTool({ name, arguments: args }),
+    30000,
+    `调用 ${name}`,
+  );
   const content = result.structuredContent as Record<string, unknown> | undefined;
   const error = content?.error as { code?: string; message?: string } | undefined;
   if (result.isError || error) {
@@ -82,8 +129,8 @@ export const api = {
 };
 
 export async function readResourceBase64(uri: string): Promise<{ bytes: ArrayBuffer; mime: string }> {
-  await ready();
-  const result = await app.readServerResource({ uri });
+  await withTimeout(ready(), 8000, "连接宿主");
+  const result = await withTimeout(app.readServerResource({ uri }), 30000, `读取 ${uri}`);
   const c = result.contents[0] as { mimeType?: string; blob?: string };
   if (!c?.blob) throw new DocError("not_found", `资源为空:${uri}`);
   const bin = atob(c.blob);
