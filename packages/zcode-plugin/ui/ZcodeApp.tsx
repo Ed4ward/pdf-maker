@@ -19,7 +19,7 @@ import type { CompareMode, PageEntry, Replacement as WebReplacement, TextBoxPatc
 import type { DocState as ServerDocState } from "../src/contract.ts";
 import { sourceResourceUri } from "../src/contract.ts";
 import { api, onDocState, onTheme, readResourceBase64 } from "./bridge";
-import { compositePage, loadSource, renderBase, drawReplacement } from "./pdf";
+import { compositePage, loadSource, renderBase, drawReplacement, loadImage } from "./pdf";
 
 /**
  * Web Replacement 形状 = 服务端 Replacement + dataUrl(经资源通道取回)
@@ -158,8 +158,8 @@ function ZcodeEditor() {
           const canvas = await renderBase(pdfDoc, entry, 140);
           const ctx = canvas.getContext("2d")!;
           const rep = snap.replacements[entry.id];
-          if (rep) {
-            const img = await import("./pdf").then((m) => m.loadImage(assetUrls[rep.assetId]));
+          if (rep && assetUrls[rep.assetId]) {
+            const img = await loadImage(assetUrls[rep.assetId]);
             drawReplacement(ctx, img, canvas.width, canvas.height, rep);
           }
           if (token !== thumbToken.current) return;

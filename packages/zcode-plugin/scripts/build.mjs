@@ -1,60 +1,77 @@
-import { build } from "esbuild";
+import { build as esbuild } from "esbuild";
 import { createRequire } from "node:module";
-import { execFileSync } from "node:child_process";
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const require2 = createRequire(import.meta.url);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const webSrc = resolve(root, "../../src");
+const webRoot = resolve(root, "../..");
+const webSrc = resolve(webRoot, "src");
 const dist = join(root, "dist");
 await rm(dist, { recursive: true, force: true });
 
-// ---- Tailwind:与 Web 端同一套样式体系(扫描面板 + Web 组件源码) ----
-const cliPkg = require2.resolve("@tailwindcss/cli/package.json");
-const cliJs = join(dirname(cliPkg), "dist/index.mjs");
-const cssOut = join(dist, "app.css");
-execFileSync(process.execPath, [cliJs, "-i", join(root, "ui/app.css"), "-o", cssOut], {
-  stdio: "inherit",
+// ---- 页面:Vite 构建(与 Web 端同工具链:React 19 + Tailwind v4)----
+// 工具类样式直接复用 Web 构建产物 CSS(面板组件是 Web 组件子集,类必命中)
+const webAssetsDir = join(webRoot, "dist", "assets");
+const findWebCss = async () =>
+  (await import("node:fs")).readdirSync(webAssetsDir).find((f) => f.startsWith("index-") && f.endsWith(".css"));
+const rootRequire = createRequire(join(webRoot, "package.json"));
+let webCssName = await findWebCss().catch(() => undefined);
+if (!webCssName) {
+  // Web 端尚未构建:先构建一次
+  execFileSync(process.execPath, [vitePath, "build"], { cwd: webRoot, stdio: "inherit" });
+  webCssName = await findWebCss();
+}
+const vitePath = rootRequire.resolve("vite");
+const reactPluginPath = rootRequire.resolve("@vitejs/plugin-react");
+const tailwindPluginPath = rootRequire.resolve("@tailwindcss/vite");
+const vite = await import(pathToFileURL(vitePath).href);
+const reactPlugin = await import(pathToFileURL(reactPluginPath).href);
+const tailwindPlugin = await import(pathToFileURL(tailwindPluginPath).href);
+
+await vite.build({
+  root,
+  base: "./",
+  logLevel: "warn",
+  plugins: [reactPlugin.default(), tailwindPlugin.default()],
+  resolve: {
+    alias: { "@": webSrc },
+    dedupe: ["react", "react-dom"],
+  },
+  build: {
+    outDir: join(dist, "page"),
+    emptyOutDir: true,
+    copyPublicDir: false,
+    rollupOptions: { input: join(root, "ui/editor.html") },
+  },
 });
 
-// ---- 页面:React 组件复用 Web 端实现,内联为单文件 editor.html ----
-const ui = await build({
-  metafile: true,
-  entryPoints: [join(root, "ui/main.tsx")],
-  bundle: true,
-  format: "iife",
-  platform: "browser",
-  target: "es2022",
-  minify: true,
-  write: false,
-  outdir: join(dist, "ui"),
-  jsx: "automatic",
-  alias: {
-    "@": webSrc,
-    // Web src 与插件各自带 node_modules/react,必须收敛为单一副本,否则 hooks 报 null
-    react: resolve(root, "node_modules/react"),
-    "react-dom": resolve(root, "node_modules/react-dom"),
-    "react/jsx-runtime": resolve(root, "node_modules/react/jsx-runtime"),
-  },
-  define: { "process.env.NODE_ENV": '"production"' },
-});
-const js = ui.outputFiles.find((f) => f.path.endsWith(".js")).text;
-const css = await readFile(cssOut, "utf8");
-// 转义结束标签,避免提前闭合 <script>/<style>
+// 内联 JS/CSS 为单文件面板(MCP Apps 资源要求单 HTML)
+const pageDir = join(dist, "page", "ui");
 const escape = (text, tag) => text.replace(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`);
-const template = await readFile(join(root, "ui/editor.html"), "utf8");
-const html = template
-  .replace("/*__EDITOR_CSS__*/", () => escape(css, "style"))
-  .replace("/*__EDITOR_JS__*/", () => escape(js, "script"));
+const pageHtml = await readFile(join(pageDir, "editor.html"), "utf8");
+const jsMatch = pageHtml.match(/<script type="module"[^>]*src="([^"]+)"/);
+if (!jsMatch) throw new Error("vite 产物缺少 js 引用");
+const js = await readFile(resolve(pageDir, jsMatch[1]), "utf8");
+// 工具类来自 Web 构建产物 CSS(面板组件是 Web 组件子集),加上插件自定义类
+const webCss = await readFile(join(webAssetsDir, webCssName), "utf8");
+const customCss = await readFile(join(root, "ui/app.css"), "utf8");
+const css = webCss + "\n" + customCss;
+const cssTag = `<style>${escape(css, "style")}</style>`;
+let html = pageHtml.replace(
+  /<script type="module"[^>]*><\/script>/,
+  () => `<script type="module">${escape(js, "script")}</script>`,
+);
+html = html.replace("</head>", () => cssTag + "</head>");
+html = html.replace(/<script type="module"[^>]*><\/script>/g, "");
 
 // ---- 安装产物:marketplace + 插件目录 ----
 const pluginDist = join(dist, "marketplace/plugins/pdf-editor");
 await mkdir(join(pluginDist, "dist/ui"), { recursive: true });
 await writeFile(join(pluginDist, "dist/ui/editor.html"), html);
 
-const server = await build({
+const server = await esbuild({
   metafile: true,
   entryPoints: [join(root, "src/main.ts")],
   outfile: join(pluginDist, "dist/server.mjs"),
