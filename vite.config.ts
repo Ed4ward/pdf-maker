@@ -13,5 +13,9 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // packages/zcode-plugin 自带一份 react/scheduler,若不加去重,
+    // dev 预构建会混入两套 React 实例,导致 "Cannot read properties of
+    // null (reading 'useState')" 崩溃
+    dedupe: ["react", "react-dom", "react-dom/client", "scheduler"],
   },
 });
