@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Replacement } from "@/types";
+import { useI18n } from "@/i18n";
 
 /**
  * 替换图在页面框内的定位样式(全部用百分比表达,任意尺寸下表现一致)。
@@ -41,10 +42,11 @@ export default function ReplacedImage({
   pageH: number;
   rep: Replacement;
 }) {
+  const { t } = useI18n();
   return (
     <img
       src={rep.dataUrl}
-      alt={`替换图:${rep.name}`}
+      alt={t("textbox.alt", { name: rep.name })}
       draggable={false}
       className="absolute select-none"
       style={replacedImageStyle(pageW, pageH, rep)}

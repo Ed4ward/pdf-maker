@@ -4,7 +4,7 @@ import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
 import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/i18n";
-import { cn } from "@/lib/utils";
+import { cn, pageGeoKey } from "@/lib/utils";
 import type { PageEntry, Replacement, TextBox } from "@/types";
 
 interface ThumbPanelProps {
@@ -52,6 +52,7 @@ export default function ThumbPanel({
       <div className="scrollbar-none flex flex-1 flex-row gap-2 overflow-x-auto overflow-y-clip p-2 md:flex-col md:gap-3.5 md:overflow-x-hidden md:overflow-y-auto md:p-3">
         {entries.map((entry, i) => {
           const rep = replacements[entry.id];
+          const thumb = thumbs[pageGeoKey(entry)];
           const isDragOver = dragFrom !== null && dragOver === i && dragFrom !== i;
           return (
             <div
@@ -94,17 +95,17 @@ export default function ThumbPanel({
                 <div
                   className={cn(
                     "relative max-h-[106px] overflow-hidden md:max-h-none",
-                    !thumbs[entry.id] && !rep && "thumb-skeleton"
+                    !thumb && !rep && "thumb-skeleton"
                   )}
                   style={{ aspectRatio: `${entry.w} / ${entry.h}`, containerType: "inline-size" }}
                 >
                   {rep ? (
                     <ReplacedImage pageW={entry.w} pageH={entry.h} rep={rep} />
                   ) : (
-                    thumbs[entry.id] && (
+                    thumb && (
                       <img
-                        src={thumbs[entry.id]}
-                        alt={`第 ${i + 1} 页`}
+                        src={thumb}
+                        alt={t("preview.pageAlt", { n: i + 1 })}
                         className="absolute inset-0 h-full w-full object-cover"
                         draggable={false}
                       />

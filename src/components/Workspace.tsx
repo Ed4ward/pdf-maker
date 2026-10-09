@@ -6,20 +6,45 @@ import {
   type CSSProperties,
   type DragEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
-import { Columns2, MoveHorizontal, Trash2, ToggleLeft, X } from "lucide-react";
+import {
+  BookOpen,
+  Columns2,
+  Download,
+  Focus,
+  FolderOpen,
+  ImageOff,
+  ImagePlus,
+  MoveHorizontal,
+  Plus,
+  Proportions,
+  RectangleVertical,
+  RotateCcw,
+  RotateCw,
+  ToggleLeft,
+  Trash2,
+  Type,
+  Undo2,
+  X,
+} from "lucide-react";
 import BrandMark from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useI18n } from "@/i18n";
 import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
 import { cn } from "@/lib/utils";
-import type { CompareMode, FitMode, Replacement, ReplacementPatch, TextBox, TextBoxPatch } from "@/types";
+import type { CompareMode, FitMode, Replacement, ReplacementPatch, TextBox, TextBoxPatch, ViewMode } from "@/types";
+
+/** 快捷键提示的平台前缀(mac 显示 ⌘,其余显示 Ctrl+) */
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iP(hone|pad|od)/.test(navigator.userAgent);
+const MOD_KEY = IS_MAC ? "⌘" : "Ctrl+";
 
 /** 原地对比模式的状态(由 App 持有) */
 export interface CompareView {
@@ -50,6 +75,57 @@ const MODES: Array<{ value: CompareMode; icon: typeof Columns2 }> = [
   { value: "toggle", icon: ToggleLeft },
 ];
 
+/** 页面操作栏按钮:图标 + 悬停提示(kbd 快捷键) */
+function BarButton({
+  action,
+  icon,
+  label,
+  shortcut,
+  disabled,
+  onClick,
+  danger,
+}: {
+  action: string;
+  icon: ReactNode;
+  label: string;
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          data-action={action}
+          variant="ghost"
+          size="icon"
+          disabled={disabled}
+          onClick={onClick}
+          className={cn("size-8 shrink-0", danger && "text-red-500 hover:bg-red-50 hover:text-red-600")}
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="flex items-center gap-2">
+        <span className="text-xs">{label}</span>
+        {shortcut && (
+          <KbdGroup>
+            {shortcut.split(" ").map((part) => (
+              <Kbd key={part}>{part}</Kbd>
+            ))}
+          </KbdGroup>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** 操作栏分组分隔线 */
+function BarDivider() {
+  return <div className="mx-1 h-5 w-px shrink-0 bg-border" />;
+}
+
 interface WorkspaceProps {
   hasDoc: boolean;
   docLoading: boolean;
@@ -75,6 +151,27 @@ interface WorkspaceProps {
   onOpen: () => void;
   /** pageId 指定图片落点页(双页模式按所在卡片);缺省为当前页 */
   onDropFile: (file: File, pageId?: string) => void;
+  /** 页面操作栏 */
+  onReplace: () => void;
+  onAddText: () => void;
+  onRotate: (delta: 90 | -90) => void;
+  onOpenPageSize: () => void;
+  onAddPage: () => void;
+  onDeletePage: () => void;
+  canDeletePage: boolean;
+  onRevert: () => void;
+  onCompare: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
+  /** 文件:打开(内部处理未保存确认)/ 导出 */
+  onExport: () => void;
+  canExport: boolean;
+  /** 视图:单页/双页滑块(Zen 为第三段)+ Zen 回调 */
+  viewMode: ViewMode;
+  onViewMode: (value: ViewMode) => void;
+  /** Zen 模式当前状态(滑块选中态) */
+  zen?: boolean;
+  onToggleZen?: () => void;
 }
 
 export default function Workspace({
@@ -99,6 +196,23 @@ export default function Workspace({
   onExitCompare,
   onOpen,
   onDropFile,
+  onReplace,
+  onAddText,
+  onRotate,
+  onOpenPageSize,
+  onAddPage,
+  onDeletePage,
+  canDeletePage,
+  onRevert,
+  onCompare,
+  onUndo,
+  canUndo,
+  onExport,
+  canExport,
+  viewMode,
+  onViewMode,
+  zen,
+  onToggleZen,
 }: WorkspaceProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -323,12 +437,19 @@ export default function Workspace({
     "relative shrink-0 overflow-hidden rounded-md bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.10)] ring-1 ring-slate-900/5";
 
   const activeEffRep = activePage ? effRepOf(activePage) : null;
+  const canRevert = !!activeEffRep;
+  const canCompare = !!activeEffRep;
+  /** 操作栏上下文:选中文字框 → 文字调整;否则当前页有替换图 → 排版调整 */
+  const context: "text" | "replace" | null = selectedTextBox
+    ? "text"
+    : activeEffRep
+      ? "replace"
+      : null;
 
   return (
     <section
-      ref={areaRef}
       className={cn(
-        "workspace-dots relative flex min-w-0 flex-1 items-center justify-center overflow-auto transition-colors",
+        "relative flex min-w-0 flex-1 flex-col transition-colors",
         dropHint && "bg-blue-50 outline-3 outline-dashed -outline-offset-3 outline-blue-600"
       )}
       onDragOver={(e) => {
@@ -340,6 +461,11 @@ export default function Workspace({
       }}
       onDrop={handleDrop}
     >
+      {/* 预览舞台:页面卡片 / 对比视图 */}
+      <div
+        ref={areaRef}
+        className="workspace-dots relative flex min-w-0 flex-1 items-center justify-center overflow-auto"
+      >
       {!hasDoc && !docLoading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5">
           <BrandMark className="size-20 drop-shadow-xl shadow-blue-600/20" />
@@ -386,7 +512,7 @@ export default function Workspace({
                   p.src && (
                     <img
                       src={p.src}
-                      alt="页面预览"
+                      alt={t("preview.page")}
                       className="block h-full w-full select-none"
                       draggable={false}
                     />
@@ -424,62 +550,6 @@ export default function Workspace({
         </div>
       )}
 
-      {/* 替换图调整工具条(跟随当前选中页) */}
-      {hasDoc && !compare && activePage && activeEffRep && (
-        <div className="absolute bottom-4 left-1/2 z-[5] flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={activeEffRep.fit}
-            onValueChange={(v) => {
-              if (v) onAdjust(activePage.id, { fit: v as FitMode }, true);
-            }}
-            className="gap-0 rounded-lg bg-slate-100 p-0.5"
-          >
-            <ToggleGroupItem
-              value="contain"
-              data-action="fit-contain"
-              className="h-7 cursor-pointer border-none px-3 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
-            >
-              {t("adjust.fitContain")}
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value="cover"
-              data-action="fit-cover"
-              className="h-7 cursor-pointer border-none px-3 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
-            >
-              {t("adjust.fitCover")}
-            </ToggleGroupItem>
-          </ToggleGroup>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">{t("adjust.scale")}</span>
-            <Slider
-              data-action="replace-scale"
-              min={0.5}
-              max={3}
-              step={0.05}
-              value={[activeEffRep.scale]}
-              onValueChange={(v) => {
-                liveScalesRef.current = { ...liveScalesRef.current, [activePage.id]: v[0] };
-                setLiveScales((prev) => ({ ...prev, [activePage.id]: v[0] }));
-              }}
-              onValueCommit={commitScale}
-              className="w-28"
-            />
-            <span className="w-10 text-xs text-slate-700 tabular-nums">
-              {Math.round(activeEffRep.scale * 100)}%
-            </span>
-          </div>
-          <button
-            data-action="adjust-reset"
-            className="cursor-pointer text-xs text-slate-500 hover:text-slate-900"
-            onClick={() => onAdjust(activePage.id, { fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
-          >{t("adjust.reset")}</button>
-          <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
-          <span className="text-xs text-slate-400">{t("adjust.hint")}</span>
-        </div>
-      )}
-
       {/* 原地对比:滑动 */}
       {compare && compare.mode === "slider" && cardStyle && activePage && (
         <div
@@ -489,7 +559,7 @@ export default function Workspace({
         >
           <img
             src={compare.before}
-            alt="替换前"
+            alt={t("toggle.before")}
             className="absolute inset-0 h-full w-full bg-white object-contain"
             draggable={false}
           />
@@ -517,7 +587,7 @@ export default function Workspace({
         <div className={stageCardClass} style={cardStyle}>
           <img
             src={compare.before}
-            alt="替换前"
+            alt={t("toggle.before")}
             className="absolute inset-0 h-full w-full bg-white object-contain transition-opacity duration-150"
             style={{ opacity: isAfter ? 0 : 1 }}
             draggable={false}
@@ -585,55 +655,6 @@ export default function Workspace({
         </div>
       )}
 
-      {/* 文字工具条 */}
-      {!compare && selectedTextBox && (
-        <div className="absolute top-4 left-1/2 z-[6] flex max-w-[calc(100%-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border bg-background/95 px-2.5 py-1.5 shadow-lg backdrop-blur">
-          <span className="pl-1 text-xs font-medium text-slate-500">{t("text.toolbar")}</span>
-          <button
-            className="h-7 min-w-7 cursor-pointer rounded-md px-1.5 text-xs font-bold text-slate-600 hover:bg-accent"
-            data-action="text-font-dec"
-            title="减小字号"
-            onClick={() => onPatchText(selectedTextBox.id, { size: Math.max(0.02, selectedTextBox.size / 1.25) })}
-          >
-            A−
-          </button>
-          <button
-            className="h-7 min-w-7 cursor-pointer rounded-md px-1.5 text-sm font-bold text-slate-600 hover:bg-accent"
-            data-action="text-font-inc"
-            title="增大字号"
-            onClick={() => onPatchText(selectedTextBox.id, { size: Math.min(0.3, selectedTextBox.size * 1.25) })}
-          >
-            A+
-          </button>
-          <div className="flex items-center gap-1">
-            {["#1e293b", "#2563eb", "#dc2626", "#ffffff"].map((c) => (
-              <button
-                key={c}
-                data-action="text-color"
-                data-color={c}
-                title={c}
-                className={cn(
-                  "size-5 cursor-pointer rounded-full border border-slate-300",
-                  selectedTextBox.color === c && "ring-2 ring-blue-500 ring-offset-1"
-                )}
-                style={{ backgroundColor: c }}
-                onClick={() => onPatchText(selectedTextBox.id, { color: c })}
-              />
-            ))}
-          </div>
-          <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
-          <button
-            className="grid size-7 cursor-pointer place-items-center rounded-md text-red-500 hover:bg-red-50"
-            data-action="text-delete"
-            title="删除文字框 (Delete)"
-            onClick={() => onRemoveText(selectedTextBox.id)}
-          >
-            <Trash2 className="size-4" />
-          </button>
-          <span className="pr-1 text-xs text-slate-400">双击文字编辑 · 拖动移动</span>
-        </div>
-      )}
-
       {/* 对比模式悬浮条 */}
       {compare && (
         <div className="absolute top-4 left-1/2 z-[6] flex max-w-[calc(100%-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-xl border bg-background/95 p-1 shadow-lg backdrop-blur">
@@ -678,40 +699,216 @@ export default function Workspace({
         </div>
       )}
 
-      {/* 缩放条(并排模式下隐藏,固定右下角) */}
-      {hasDoc && (!compare || compare.mode !== "side") && (
-        <div className="absolute right-4 bottom-4 z-[5] flex items-center rounded-full bg-slate-900/85 p-1 text-slate-200 shadow-lg backdrop-blur">
-          <button
-            className="grid size-7 cursor-pointer place-items-center rounded-full text-base hover:bg-white/15"
-            onClick={() => onZoom(zoom - 0.25)}
-            data-action="zoom-out"
-            title={t("zoom.out")}
-          >
-            −
-          </button>
-          <button
-            className="min-w-[52px] cursor-pointer text-center text-xs tabular-nums hover:text-white"
-            onClick={() => onZoom(1)}
-            data-action="zoom-reset"
-            title={t("zoom.reset")}
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            className="grid size-7 cursor-pointer place-items-center rounded-full text-base hover:bg-white/15"
-            onClick={() => onZoom(zoom + 0.25)}
-            data-action="zoom-in"
-            title={t("zoom.in")}
-          >
-            +
-          </button>
+      </div>
+
+      {/* 页面操作栏:页面相关操作集中于此,随宽度自动换行,不遮挡页面。
+          Zen 模式下隐藏(沉浸预览,经右上角按钮或 Esc 退出);
+          上下文区:选中文字框时显示文字调整,当前页有替换图时显示排版调整 */}
+      {hasDoc && !zen && (
+        <div className="shrink-0 border-t bg-background/95 backdrop-blur">
+          <div className="flex min-h-11 flex-wrap items-center justify-end gap-y-1 px-2 py-1">
+            <BarButton action="replace-image" icon={<ImagePlus />} label={t("topbar.replace")} shortcut="R" disabled={!hasDoc} onClick={onReplace} />
+            <BarButton action="add-text" icon={<Type />} label={t("topbar.addText")} shortcut="T" disabled={!hasDoc} onClick={onAddText} />
+            <BarDivider />
+            <BarButton action="rotate-left" icon={<RotateCcw />} label={t("topbar.rotateLeft")} shortcut="[" disabled={!hasDoc} onClick={() => onRotate(-90)} />
+            <BarButton action="rotate-right" icon={<RotateCw />} label={t("topbar.rotateRight")} shortcut="]" disabled={!hasDoc} onClick={() => onRotate(90)} />
+            <BarButton action="page-size" icon={<Proportions />} label={t("topbar.pageSize")} shortcut="S" disabled={!hasDoc} onClick={onOpenPageSize} />
+            <BarDivider />
+            <BarButton action="add-page" icon={<Plus />} label={t("topbar.addPage")} shortcut="N" disabled={!hasDoc} onClick={onAddPage} />
+            <BarButton action="undo" icon={<Undo2 />} label={t("topbar.undo")} shortcut={`${MOD_KEY} Z`} disabled={!canUndo} onClick={onUndo} />
+            <BarButton action="delete-page" icon={<Trash2 />} label={t("topbar.delete")} shortcut={IS_MAC ? "⌘ ⌫" : "Ctrl ⌫"} disabled={!canDeletePage} onClick={onDeletePage} danger />
+            {!compare && context === "replace" && activePage && activeEffRep && (
+              <>
+                <BarDivider />
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={activeEffRep.fit}
+                  onValueChange={(v) => {
+                    if (v) onAdjust(activePage.id, { fit: v as FitMode }, true);
+                  }}
+                  className="gap-0 rounded-lg bg-slate-100 p-0.5"
+                >
+                  <ToggleGroupItem
+                    value="contain"
+                    data-action="fit-contain"
+                    className="h-7 cursor-pointer border-none px-2.5 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+                  >
+                    {t("adjust.fitContain")}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="cover"
+                    data-action="fit-cover"
+                    className="h-7 cursor-pointer border-none px-2.5 text-xs font-medium data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+                  >
+                    {t("adjust.fitCover")}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <div className="flex items-center gap-1.5 pl-1.5">
+                  <span className="hidden text-xs text-slate-500 sm:inline">{t("adjust.scale")}</span>
+                  <Slider
+                    data-action="replace-scale"
+                    min={0.5}
+                    max={3}
+                    step={0.05}
+                    value={[activeEffRep.scale]}
+                    onValueChange={(v) => {
+                      liveScalesRef.current = { ...liveScalesRef.current, [activePage.id]: v[0] };
+                      setLiveScales((prev) => ({ ...prev, [activePage.id]: v[0] }));
+                    }}
+                    onValueCommit={commitScale}
+                    className="w-24 sm:w-28"
+                  />
+                  <span className="w-10 text-xs text-slate-700 tabular-nums">
+                    {Math.round(activeEffRep.scale * 100)}%
+                  </span>
+                </div>
+                <button
+                  data-action="adjust-reset"
+                  className="cursor-pointer rounded-md px-2 py-1 text-xs text-slate-500 hover:bg-accent hover:text-slate-900"
+                  onClick={() => onAdjust(activePage.id, { fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
+                >{t("adjust.reset")}</button>
+                <BarButton action="revert-page" icon={<ImageOff />} label={t("topbar.revert")} shortcut="⇧ R" disabled={!canRevert} onClick={onRevert} />
+                <BarButton action="toggle-compare" icon={<Columns2 />} label={t("topbar.compare")} shortcut="C" disabled={!canCompare} onClick={onCompare} />
+              </>
+            )}
+            {!compare && context === "text" && selectedTextBox && (
+              <>
+                <BarDivider />
+                <span className="hidden pl-1 text-xs font-medium text-slate-500 sm:inline">{t("text.toolbar")}</span>
+                <button
+                  className="h-8 min-w-8 cursor-pointer rounded-md px-1.5 text-xs font-bold text-slate-600 hover:bg-accent"
+                  data-action="text-font-dec"
+                  title={t("text.fontDec.title")}
+                  onClick={() => onPatchText(selectedTextBox.id, { size: Math.max(0.02, selectedTextBox.size / 1.25) })}
+                >
+                  A−
+                </button>
+                <button
+                  className="h-8 min-w-8 cursor-pointer rounded-md px-1.5 text-sm font-bold text-slate-600 hover:bg-accent"
+                  data-action="text-font-inc"
+                  title={t("text.fontInc.title")}
+                  onClick={() => onPatchText(selectedTextBox.id, { size: Math.min(0.3, selectedTextBox.size * 1.25) })}
+                >
+                  A+
+                </button>
+                <div className="flex items-center gap-1 pl-0.5">
+                  {["#1e293b", "#2563eb", "#dc2626", "#ffffff"].map((c) => (
+                    <button
+                      key={c}
+                      data-action="text-color"
+                      data-color={c}
+                      title={c}
+                      className={cn(
+                        "size-5 cursor-pointer rounded-full border border-slate-300",
+                        selectedTextBox.color === c && "ring-2 ring-blue-500 ring-offset-1"
+                      )}
+                      style={{ backgroundColor: c }}
+                      onClick={() => onPatchText(selectedTextBox.id, { color: c })}
+                    />
+                  ))}
+                </div>
+                <BarButton action="text-delete" icon={<Trash2 />} label={t("text.delete.title")} shortcut="Del" onClick={() => onRemoveText(selectedTextBox.id)} danger />
+              </>
+            )}
+            {/* 右对齐:视图滑块(单页/双页/Zen)/ 缩放 / 打开 / 导出 */}
+            <BarDivider />
+            <ToggleGroup
+              type="single"
+              value={zen ? "zen" : viewMode}
+              onValueChange={(v) => {
+                if (!v) return;
+                if (v === "zen") {
+                  onToggleZen?.();
+                  return;
+                }
+                onViewMode(v as ViewMode);
+                if (zen) onToggleZen?.();
+              }}
+              disabled={!hasDoc}
+              className="gap-0 rounded-lg bg-slate-100 p-0.5"
+            >
+              {/* Tooltip 挂在外层 span 上:直接 asChild 会用 data-state="closed" 覆盖滑块选中态 */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <ToggleGroupItem
+                      value="single"
+                      data-action="view-single"
+                      aria-label={t("topbar.viewSingle")}
+                      className="size-7 cursor-pointer rounded-md border-none data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+                    >
+                      <RectangleVertical className="size-4" />
+                    </ToggleGroupItem>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-2">
+                  <span className="text-xs">{t("topbar.viewSingle")}</span>
+                  <Kbd>1</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <ToggleGroupItem
+                      value="double"
+                      data-action="view-double"
+                      aria-label={t("topbar.viewDouble")}
+                      className="size-7 cursor-pointer rounded-md border-none data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+                    >
+                      <BookOpen className="size-4" />
+                    </ToggleGroupItem>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="flex items-center gap-2">
+                  <span className="text-xs">{t("topbar.viewDouble")}</span>
+                  <Kbd>2</Kbd>
+                </TooltipContent>
+              </Tooltip>
+              {onToggleZen && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <ToggleGroupItem
+                        value="zen"
+                        data-action="toggle-zen"
+                        aria-label={t("topbar.zen")}
+                        className="size-7 cursor-pointer rounded-md border-none data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+                      >
+                        <Focus className="size-4" />
+                      </ToggleGroupItem>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="flex items-center gap-2">
+                    <span className="text-xs">{t("topbar.zen")}</span>
+                    <Kbd>Z</Kbd>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </ToggleGroup>
+            <BarDivider />
+            {/* 缩放 */}
+            <BarButton action="zoom-out" icon={<span className="text-base leading-none">−</span>} label={t("zoom.out")} onClick={() => onZoom(zoom - 0.25)} />
+            <button
+              className="min-w-[52px] cursor-pointer rounded-md px-1 py-1.5 text-center text-xs tabular-nums text-slate-600 hover:bg-accent hover:text-slate-900"
+              onClick={() => onZoom(1)}
+              data-action="zoom-reset"
+              title={`${t("zoom.reset")} · 0`}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <BarButton action="zoom-in" icon={<span className="text-base leading-none">+</span>} label={t("zoom.in")} onClick={() => onZoom(zoom + 0.25)} />
+            <BarDivider />
+            <BarButton action="open-pdf" icon={<FolderOpen />} label={t("topbar.open")} shortcut="O" onClick={onOpen} />
+            <BarButton action="export-pdf" icon={<Download />} label={t("topbar.export")} disabled={!canExport} onClick={onExport} />
+          </div>
         </div>
       )}
 
       {docLoading && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3.5 bg-slate-100/75 backdrop-blur-[2px]">
           <div className="spinner" />
-          <div className="text-[13px] text-slate-500">{loadingText || "正在加载…"}</div>
+          <div className="text-[13px] text-slate-500">{loadingText || t("loading.default")}</div>
         </div>
       )}
     </section>
