@@ -27,6 +27,8 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
     change 事件会自动触发对应流程(无需点击按钮)
 - 页面文字框:[data-textbox="<id>"](contenteditable 编辑态同元素)
 - 对比模式 tab:[role="tab"][data-action^="cmp-"]
+- Zen 模式下 header / aside / footer 均从 DOM 移除,仅保留 main section 预览区
+  与右上角悬浮退出按钮 [data-action="exit-zen"]
 
 【功能目录:data-action → 操作 → 结果】
 1. open-pdf      click 后弹文件选择;或对 input[accept="application/pdf"] setFiles
@@ -72,6 +74,11 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
 24. prev-page / next-page  状态栏页码两侧的翻页按钮(首页/末页时对应按钮禁用);
     键盘翻页:←/→ 逐页,PageUp/PageDown 翻页(双页模式一次翻一个对页),
     Home/End 跳首/末页;文字编辑态与对比模式下不响应(对比模式有独立快捷键)
+25. toggle-zen / exit-zen  顶栏 Zen 模式按钮(未打开文档时禁用;view-single/view-double
+    同组)→ 进入沉浸预览:隐藏 header/aside/footer,只保留预览工作区(翻页快捷键、
+    缩放条、对比等 Workspace 内交互照常)。退出:click 右上角悬浮
+    [data-action="exit-zen"] 或按 Esc;文字编辑态与对比模式下 Esc 先提交文字 /
+    退出对比,再按一次退出 Zen。视图偏好,不产生撤销快照
 
 【拖拽交互(可选路径)】
 - 拖图片文件悬停预览区:当前页出现蓝色虚线框与「松开鼠标,替换当前页」提示,松开即替换
@@ -97,6 +104,7 @@ PDF编辑器(Web 原型)· Agent 操作手册 (llm.txt)
 - 状态栏 footer 文本:`文档:<名>` | `第 x / y 页` | `已替换 n 页`(n>0 才出现)| `缩放 %`
 - 缩略图角标:aside [data-thumb-badge] 存在 = 该页已被替换
 - 对比模式判定:DOM 中存在 [role="tab"][data-action^="cmp-"] 即处于对比态
+- Zen 模式判定:DOM 中不存在 header/aside/footer,且存在 [data-action="exit-zen"]
 - 文字框存在:[data-textbox];编辑态即该元素 contenteditable="plaintext-only"
 - 操作反馈 toast:[data-sonner-toast](成功/撤销/错误均有文案)
 - 按钮可用性:disabled 属性(如未替换时 toggle-compare / revert-page / export 禁用)
