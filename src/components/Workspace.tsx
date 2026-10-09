@@ -151,7 +151,7 @@ export default function Workspace({
   // 常规预览 & 滑动/切换对比共用:按"适应窗口 × 缩放"计算卡片尺寸
   const cardStyle = useMemo<CSSProperties | null>(() => {
     if (!pageInfo || box.w === 0) return null;
-    const pad = 56;
+    const pad = box.w < 640 ? 20 : 56;
     const fit = Math.min((box.w - pad) / pageInfo.w, (box.h - pad) / pageInfo.h);
     const s = fit * zoom;
     return { width: Math.round(pageInfo.w * s), height: Math.round(pageInfo.h * s) };
@@ -359,7 +359,7 @@ export default function Workspace({
 
       {/* 替换图调整工具条 */}
       {hasDoc && !compare && replacement && (
-        <div className="absolute bottom-4 left-1/2 z-[5] flex -translate-x-1/2 items-center gap-3 rounded-xl border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+        <div className="absolute bottom-4 left-1/2 z-[5] flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
           <ToggleGroup
             type="single"
             variant="outline"
@@ -520,8 +520,8 @@ export default function Workspace({
 
       {/* 文字工具条 */}
       {!compare && selectedTextBox && (
-        <div className="absolute top-4 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-2 rounded-xl border bg-background/95 px-2.5 py-1.5 shadow-lg backdrop-blur">
-          <span className="pl-1 text-xs font-medium text-slate-500">文字</span>
+        <div className="absolute top-4 left-1/2 z-[6] flex max-w-[calc(100%-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-xl border bg-background/95 px-2.5 py-1.5 shadow-lg backdrop-blur">
+          <span className="pl-1 text-xs font-medium text-slate-500">{t("text.toolbar")}</span>
           <button
             className="h-7 min-w-7 cursor-pointer rounded-md px-1.5 text-xs font-bold text-slate-600 hover:bg-accent"
             data-action="text-font-dec"
@@ -569,7 +569,7 @@ export default function Workspace({
 
       {/* 对比模式悬浮条 */}
       {compare && (
-        <div className="absolute top-4 left-1/2 z-[6] flex -translate-x-1/2 items-center gap-1 rounded-xl border bg-background/95 p-1 shadow-lg backdrop-blur">
+        <div className="absolute top-4 left-1/2 z-[6] flex max-w-[calc(100%-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 rounded-xl border bg-background/95 p-1 shadow-lg backdrop-blur">
           <Tabs value={compare.mode} onValueChange={(v) => onCompareMode(v as CompareMode)}>
             <TabsList className="h-8 gap-0.5 rounded-lg p-0.5">
               {MODES.map(({ value, icon: Icon }) => (

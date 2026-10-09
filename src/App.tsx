@@ -596,7 +596,7 @@ function EditorApp() {
   /* -- 启动:空状态,等待用户打开 PDF -- */
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
         hasDoc={hasDoc}
         canRevert={!!currentReplacement}
@@ -617,7 +617,7 @@ function EditorApp() {
         onExport={handleExport}
       />
 
-      <main className="flex min-h-0 flex-1">
+      <main className="flex min-h-0 flex-1 flex-col md:flex-row">
         <Workspace
           hasDoc={hasDoc}
           docLoading={docLoading}

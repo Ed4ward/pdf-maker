@@ -104,13 +104,14 @@ export default function TopBar({
   const { t, locale, setLocale } = useI18n();
 
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center justify-center border-b bg-background px-4">
-      {/* 品牌绝对定位在左侧,按钮组在整行居中 */}
-      <div className="absolute left-4 flex items-center gap-2.5">
+    <header className="relative z-20 flex h-14 shrink-0 items-center border-b bg-background px-2 md:px-4">
+      {/* 品牌绝对定位在左侧(移动端只显示 logo),按钮组居中、放不下时横向滑动 */}
+      <div className="absolute left-2 z-10 flex items-center gap-2 bg-background pr-2 md:left-4 md:pr-3">
         <BrandMark className="size-8 shrink-0 rounded-[9px] drop-shadow-md shadow-blue-600/30" />
-        <span className="text-[15px] font-semibold">PDF编辑器</span>
+        <span className="hidden text-[15px] font-semibold md:inline">PDF编辑器</span>
       </div>
 
+      <div className="scrollbar-none mx-auto flex w-max items-center gap-0.5 overflow-x-auto py-1 md:gap-1.5">
       <Group>
         {hasEdits ? (
           <AlertDialog>
@@ -265,12 +266,13 @@ export default function TopBar({
           disabled={!canExport}
         />
       </Group>
+      </div>
 
       <button
         data-action="toggle-locale"
         title="Language / 语言"
         onClick={() => setLocale(locale === "zh-CN" ? "en" : "zh-CN")}
-        className="absolute right-4 cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900"
+        className="absolute right-2 z-10 cursor-pointer rounded-md bg-background px-2 py-1 text-xs font-medium text-slate-500 hover:bg-accent hover:text-slate-900 md:right-4"
       >
         {t("lang.toggle")}
       </button>

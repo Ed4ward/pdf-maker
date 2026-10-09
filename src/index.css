@@ -96,6 +96,14 @@
   }
 }
 
+/* 移动端横向滚动条隐藏 */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* 对比弹窗 - 滑动模式 */
 .cmp-stage img {
   user-select: none;

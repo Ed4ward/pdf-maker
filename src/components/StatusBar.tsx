@@ -13,7 +13,7 @@ export default function StatusBar({ fileName, current, total, replacedCount, zoo
   const { t } = useI18n();
   return (
     <footer className="flex h-[34px] shrink-0 items-center gap-4 border-t bg-background px-4 text-xs text-slate-500">
-      <span>
+      <span className="hidden sm:flex">
         {t("status.doc")} <span className="font-medium text-slate-800">{fileName ?? "—"}</span>
       </span>
       {total > 0 && (
@@ -26,7 +26,7 @@ export default function StatusBar({ fileName, current, total, replacedCount, zoo
           {t("status.replaced", { n: replacedCount })}
         </span>
       )}
-      <span>{t("status.zoom", { z: Math.round(zoom * 100) })}</span>
+      <span className="hidden sm:flex">{t("status.zoom", { z: Math.round(zoom * 100) })}</span>
     </footer>
   );
 }

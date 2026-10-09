@@ -42,14 +42,14 @@ export default function ThumbPanel({
   };
 
   return (
-    <aside className="flex w-[264px] shrink-0 flex-col border-l bg-background">
-      <div className="flex h-11 shrink-0 items-center justify-between border-b px-4">
+    <aside className="flex h-[124px] w-full shrink-0 flex-col border-t bg-background md:h-auto md:w-[264px] md:border-l md:border-t-0">
+      <div className="hidden h-11 shrink-0 items-center justify-between border-b px-4 md:flex">
         <span className="text-[13px] font-semibold">{t("thumbs.title")}</span>
         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">
           {t("thumbs.count", { n: entries.length })}
         </span>
       </div>
-      <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto p-3">
+      <div className="scrollbar-none flex flex-1 flex-row gap-2 overflow-x-auto p-2 md:flex-col md:gap-3.5 md:overflow-y-auto md:p-3">
         {entries.map((entry, i) => {
           const rep = replacements[entry.id];
           const isDragOver = dragFrom !== null && dragOver === i && dragFrom !== i;
@@ -60,7 +60,7 @@ export default function ThumbPanel({
                 itemRefs.current[i] = el;
               }}
               className={cn(
-                "group relative cursor-pointer select-none rounded-md",
+                "group relative w-[74px] shrink-0 cursor-pointer select-none rounded-md md:w-auto",
                 isDragOver && "outline-2 outline-dashed -outline-offset-1 outline-blue-500"
               )}
               data-action="select-page"
@@ -124,7 +124,7 @@ export default function ThumbPanel({
               </div>
               <div
                 className={cn(
-                  "mt-1.5 text-center text-xs tabular-nums",
+                  "mt-1 text-center text-[10px] leading-none tabular-nums md:mt-1.5 md:text-xs",
                   current === i ? "font-semibold text-primary" : "text-slate-400"
                 )}
               >
