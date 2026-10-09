@@ -31,7 +31,13 @@ const ui = await build({
   write: false,
   outdir: join(dist, "ui"),
   jsx: "automatic",
-  alias: { "@": webSrc },
+  alias: {
+    "@": webSrc,
+    // Web src 与插件各自带 node_modules/react,必须收敛为单一副本,否则 hooks 报 null
+    react: resolve(root, "node_modules/react"),
+    "react-dom": resolve(root, "node_modules/react-dom"),
+    "react/jsx-runtime": resolve(root, "node_modules/react/jsx-runtime"),
+  },
   define: { "process.env.NODE_ENV": '"production"' },
 });
 const js = ui.outputFiles.find((f) => f.path.endsWith(".js")).text;
