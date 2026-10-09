@@ -2,17 +2,26 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 
 export type { PDFDocumentProxy };
 
+/** 顺时针旋转角度(仅旋转页面原始内容;替换图与文字位于显示坐标系) */
+export type PageRotation = 0 | 90 | 180 | 270;
+
 /**
  * 文档中的一页:来自原始 PDF 或新建空白页。
  * id 在插入/重排过程中保持稳定,替换图与文字框都以 id 关联、自动跟随页面。
+ * w/h 为最终显示尺寸(pt):旋转 90/270 时与原始尺寸互换,改尺寸后为自定义值。
  */
 export interface PageEntry {
   id: string;
   /** 原始 PDF 中的页码(0 起);新建空白页为 null */
   srcIndex: number | null;
-  /** 页面尺寸(pt) */
+  /** 页面显示尺寸(pt) */
   w: number;
   h: number;
+  /** 原始内容附加旋转(0/90/180/270,顺时针);缺省 0 */
+  rotation?: PageRotation;
+  /** 未改动时的原始尺寸(pt),用于「原始尺寸」重置;新建空白页记 A4 */
+  origW?: number;
+  origH?: number;
 }
 
 /** 单页原始尺寸(pt) */
