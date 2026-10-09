@@ -28,6 +28,8 @@
   adjust font size and color. Supports CJK text via high-resolution composition.
 - 📄 **Page management** — insert A4 blank pages, drag thumbnails to reorder, delete pages
   (with confirmation). Replacement images and text boxes follow their page automatically.
+- 📑 **Single / two-page view** — preview one page at a time or the current two-page
+  spread side by side; toggle in the toolbar.
 - 🔍 **Before / after comparison** — verify edits in three modes: **side-by-side**,
   **slider wipe**, and **toggle**, rendered in-place in the preview area.
 - ↩️ **Snapshot undo** — every edit (replacements, layout adjustments, text, page order)
@@ -67,7 +69,9 @@ npm run dev        # start dev server → http://localhost:5173
 2. **Pages** — insert blank pages with **+**, drag thumbnails to reorder, delete with the
    trash button (asks for confirmation).
 3. **Replace** — select a page, hit **Replace with image** (or drop an image onto the
-   preview), then fine-tune with contain / cover, zoom and panning.
+   preview), then fine-tune with contain / cover, zoom and panning. Toggle **single /
+   two-page view** in the toolbar to see a spread; in two-page view a drop replaces the
+   card it lands on.
 4. **Text** — click **Add text**, double-click to edit, drag to move; pick size and color
    from the floating toolbar.
 5. **Compare** — hit **Compare** to verify the change side-by-side, with a slider, or by

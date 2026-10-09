@@ -59,6 +59,9 @@ export interface TextBox {
 /** 文字框局部更新 */
 export type TextBoxPatch = Partial<Pick<TextBox, "x" | "y" | "text" | "size" | "color">>;
 
+/** 预览视图模式:单页 / 双页(对页并排) */
+export type ViewMode = "single" | "double";
+
 export type CompareMode = "side" | "slider" | "toggle";
 
 export interface CompareData {

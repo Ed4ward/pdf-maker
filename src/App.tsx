@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TopBar from "@/components/TopBar";
-import Workspace, { type CompareView } from "@/components/Workspace";
+import Workspace, { type CompareView, type SpreadPage } from "@/components/Workspace";
 import ThumbPanel from "@/components/ThumbPanel";
 import StatusBar from "@/components/StatusBar";
 import { pdfjsLib } from "@/lib/pdfSetup";
@@ -18,6 +18,7 @@ import type {
   ReplacementPatch,
   TextBox,
   TextBoxPatch,
+  ViewMode,
 } from "@/types";
 
 /* ---------------- 状态与 reducer ---------------- */
@@ -43,6 +44,8 @@ interface State {
   textBoxes: TextBox[];
   past: Snapshot[];
   zoom: number;
+  /** 预览视图模式:单页 / 双页并排(视图偏好,不属于文档编辑,不进撤销栈) */
+  viewMode: ViewMode;
 }
 
 const initialState: State = {
@@ -57,6 +60,7 @@ const initialState: State = {
   textBoxes: [],
   past: [],
   zoom: 1,
+  viewMode: "single",
 };
 
 type Action =
@@ -74,7 +78,8 @@ type Action =
   | { type: "updateText"; id: string; patch: TextBoxPatch; pushUndo: boolean }
   | { type: "removeText"; id: string }
   | { type: "undo" }
-  | { type: "zoom"; value: number };
+  | { type: "zoom"; value: number }
+  | { type: "viewMode"; value: ViewMode };
 
 const snapshot = (s: State): Snapshot => ({
   pageList: s.pageList,
@@ -218,6 +223,8 @@ function reducer(state: State, action: Action): State {
     }
     case "zoom":
       return { ...state, zoom: Math.min(3, Math.max(0.25, action.value)) };
+    case "viewMode":
+      return state.viewMode === action.value ? state : { ...state, viewMode: action.value };
   }
 }
 
@@ -238,7 +245,8 @@ function EditorApp() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [docLoading, setDocLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("");
-  const [previewSrc, setPreviewSrc] = useState("");
+  /** 预览区可见页的高清图,按页面 id 索引(双页模式需同时备好两页) */
+  const [previewSrcs, setPreviewSrcs] = useState<Record<string, string>>({});
   const [compare, setCompare] = useState<CompareView | null>(null);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -251,10 +259,18 @@ function EditorApp() {
   const currentEntry = state.pageList[state.current];
   const currentReplacement = currentEntry ? state.replacements[currentEntry.id] ?? null : null;
   const replacedCount = Object.keys(state.replacements).length;
-  // 当前页的文字框(对比打开时 compare.index === current)
-  const currentTexts = currentEntry
-    ? state.textBoxes.filter((t) => t.pageId === currentEntry.id)
-    : [];
+
+  /* -- 预览可见页(单页 = 当前页;双页 = 当前页所在 (0,1)(2,3)… 对页) -- */
+  const spreadStart = state.viewMode === "double" ? state.current - (state.current % 2) : state.current;
+  const spreadIndices: number[] = [];
+  if (state.viewMode === "double") {
+    for (const idx of [spreadStart, spreadStart + 1]) {
+      if (idx >= 0 && idx < state.pageList.length) spreadIndices.push(idx);
+    }
+  } else if (state.pageList.length > 0) {
+    spreadIndices.push(state.current);
+  }
+  const spreadKey = spreadIndices.join(",");
 
   /* -- 文档打开 -- */
   const openDocument = useCallback(async (bytes: Uint8Array, fileName: string) => {
@@ -307,7 +323,7 @@ function EditorApp() {
 
   /* -- 替换 / 恢复 / 撤销 -- */
   const handleImageFile = useCallback(
-    async (file: File | undefined) => {
+    async (file: File | undefined, pageId?: string) => {
       if (!file) return;
       if (!file.type.startsWith("image/")) {
         toast.error(t("toast.needImage"));
@@ -320,10 +336,14 @@ function EditorApp() {
       try {
         const dataUrl = await readAsDataUrl(file);
         const img = await loadImage(dataUrl);
+        // 双页模式下拖放落在哪页就替换哪页;缺省为当前页
+        const idx = pageId ? state.pageList.findIndex((p) => p.id === pageId) : state.current;
+        const entry = state.pageList[idx];
+        if (!entry) return;
         setCompare(null);
         dispatch({
           type: "replace",
-          id: currentEntry.id,
+          id: entry.id,
           rep: {
             dataUrl,
             w: img.naturalWidth,
@@ -335,22 +355,19 @@ function EditorApp() {
             offsetY: 0,
           },
         });
-        toast.success(t("toast.replaced", { page: state.current + 1, name: file.name }));
+        toast.success(t("toast.replaced", { page: idx + 1, name: file.name }));
       } catch (err) {
         console.error(err);
         toast.error(t("toast.imageReadFailed"));
       }
     },
-    [currentEntry, t]
+    [state.current, state.pageList, t]
   );
 
-  /* -- 替换图排版调整(contain/cover、缩放、拖动位置) -- */
-  const handleAdjust = useCallback(
-    (patch: ReplacementPatch, pushUndo: boolean) => {
-      dispatch({ type: "adjust", id: currentEntry.id, patch, pushUndo });
-    },
-    [currentEntry]
-  );
+  /* -- 替换图排版调整(contain/cover、缩放、拖动位置),按页面 id 定位 -- */
+  const handleAdjust = useCallback((id: string, patch: ReplacementPatch, pushUndo: boolean) => {
+    dispatch({ type: "adjust", id, patch, pushUndo });
+  }, []);
 
   const handleRevert = useCallback(() => {
     if (!(currentEntry.id in state.replacements)) return;
@@ -397,21 +414,32 @@ function EditorApp() {
   }, [state.past, t]);
 
   /* -- 文字框 -- */
+  const addTextWithData = useCallback(
+    (
+      text: string,
+      opts: { x?: number; y?: number; size?: number; color?: string } = {},
+    ) => {
+      if (!state.doc || !currentEntry) return;
+      const box: TextBox = {
+        id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        pageId: currentEntry.id,
+        x: opts.x ?? 0.5,
+        y: opts.y ?? 0.45,
+        text,
+        size: opts.size ?? 0.06,
+        color: opts.color ?? "#1e293b",
+      };
+      dispatch({ type: "addText", box });
+      setSelectedTextId(box.id);
+      setEditingTextId(box.id);
+    },
+    [state.doc, currentEntry]
+  );
+
   const handleAddText = useCallback(() => {
     setCompare(null);
-    const box: TextBox = {
-      id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-      pageId: currentEntry.id,
-      x: 0.5,
-      y: 0.45,
-      text: "输入文字",
-      size: 0.06,
-      color: "#1e293b",
-    };
-    dispatch({ type: "addText", box });
-    setSelectedTextId(box.id);
-    setEditingTextId(box.id);
-  }, [currentEntry]);
+    addTextWithData("输入文字");
+  }, [addTextWithData]);
 
   const handleSelectText = useCallback((id: string | null) => {
     setSelectedTextId(id);
@@ -522,38 +550,45 @@ function EditorApp() {
     if (compare && state.current !== compare.index) setCompare(null);
   }, [compare, state.current]);
 
-  /* -- 当前页预览渲染 -- */
-  const pageInfo = currentEntry;
+  /* -- 可见页预览渲染(缩略图先行,高清图后台补) -- */
   useEffect(() => {
-    if (!state.doc || !currentEntry) {
-      setPreviewSrc("");
+    if (!state.doc || spreadIndices.length === 0) {
+      setPreviewSrcs({});
       return;
     }
-    const id = currentEntry.id;
-    const rep = state.replacements[id];
-    if (rep) {
-      setPreviewSrc(rep.dataUrl);
-      return;
-    }
-    const cached = state.fulls[id];
-    if (cached) {
-      setPreviewSrc(cached);
-      return;
-    }
-    // 先显示缩略图,高清图后台渲染
-    setPreviewSrc(state.thumbs[id] ?? "");
     let cancelled = false;
-    const url =
-      currentEntry.srcIndex != null
-        ? renderPageToDataUrl(state.doc, currentEntry.srcIndex, 1600, 0.92)
-        : Promise.resolve(blankPageDataUrl(currentEntry.w, currentEntry.h, 1600));
-    url.then((data) => {
-      if (!cancelled) dispatch({ type: "full", id, dataUrl: data });
-    });
+    const next: Record<string, string> = {};
+    const pending: PageEntry[] = [];
+    for (const idx of spreadIndices) {
+      const entry = state.pageList[idx];
+      if (!entry) continue;
+      const rep = state.replacements[entry.id];
+      if (rep) {
+        next[entry.id] = rep.dataUrl;
+        continue;
+      }
+      const cached = state.fulls[entry.id];
+      if (cached) {
+        next[entry.id] = cached;
+        continue;
+      }
+      next[entry.id] = state.thumbs[entry.id] ?? "";
+      pending.push(entry);
+    }
+    setPreviewSrcs(next);
+    for (const entry of pending) {
+      const url =
+        entry.srcIndex != null
+          ? renderPageToDataUrl(state.doc, entry.srcIndex, 1600, 0.92)
+          : Promise.resolve(blankPageDataUrl(entry.w, entry.h, 1600));
+      url.then((data) => {
+        if (!cancelled) dispatch({ type: "full", id: entry.id, dataUrl: data });
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [state.doc, currentEntry, state.replacements, state.fulls, state.thumbs]);
+  }, [state.doc, spreadKey, state.pageList, state.replacements, state.fulls, state.thumbs]);
 
   /* -- 键盘快捷键 -- */
   useEffect(() => {
@@ -576,7 +611,7 @@ function EditorApp() {
 
   /* -- 拖拽 -- */
   const handleDropFile = useCallback(
-    (file: File) => {
+    (file: File, pageId?: string) => {
       if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
         if ((replacedCount > 0 || state.textBoxes.length > 0) && !confirm(t("confirm.openNew"))) {
           return;
@@ -587,13 +622,29 @@ function EditorApp() {
           toast.info(t("toast.keepPdfFirst"));
           return;
         }
-        handleImageFile(file);
+        handleImageFile(file, pageId);
       }
     },
-    [handlePdfFile, handleImageFile, state.doc, replacedCount, state.textBoxes, t]
+    [handlePdfFile, handleImageFile, state.doc, state.textBoxes, replacedCount, t]
   );
 
   /* -- 启动:空状态,等待用户打开 PDF -- */
+
+  const spreadPages: SpreadPage[] = [];
+  for (const idx of spreadIndices) {
+    const entry = state.pageList[idx];
+    if (!entry) continue;
+    spreadPages.push({
+      index: idx,
+      id: entry.id,
+      w: entry.w,
+      h: entry.h,
+      src: previewSrcs[entry.id] ?? "",
+      replacement: state.replacements[entry.id] ?? null,
+      texts: state.textBoxes.filter((tb) => tb.pageId === entry.id),
+      active: idx === state.current,
+    });
+  }
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
@@ -606,6 +657,8 @@ function EditorApp() {
         canDeletePage={hasDoc && state.pageList.length > 1}
         hasEdits={replacedCount > 0 || state.textBoxes.length > 0}
         currentPage={state.current + 1}
+        viewMode={state.viewMode}
+        onViewMode={(value) => dispatch({ type: "viewMode", value })}
         onOpen={() => filePdfRef.current?.click()}
         onAddPage={handleAddPage}
         onAddText={handleAddText}
@@ -622,16 +675,14 @@ function EditorApp() {
           hasDoc={hasDoc}
           docLoading={docLoading}
           loadingText={loadingText}
-          pageInfo={pageInfo}
-          previewSrc={previewSrc}
-          replacement={currentReplacement}
-          textBoxes={currentTexts}
-          selectedTextId={selectedTextId}
-          editingTextId={editingTextId}
+          pages={spreadPages}
           zoom={state.zoom}
           compare={compare}
           onZoom={(value) => dispatch({ type: "zoom", value })}
           onAdjust={handleAdjust}
+          selectedTextId={selectedTextId}
+          editingTextId={editingTextId}
+          onSelectPage={(idx) => dispatch({ type: "select", idx })}
           onSelectText={handleSelectText}
           onStartEditText={handleStartEditText}
           onCommitText={handleCommitText}

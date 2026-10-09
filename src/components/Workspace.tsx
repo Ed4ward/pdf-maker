@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReplacedImage from "@/components/ReplacedImage";
 import TextBoxLayer from "@/components/TextBoxLayer";
 import { cn } from "@/lib/utils";
-import type { CompareMode, FitMode, PageInfo, Replacement, ReplacementPatch, TextBox, TextBoxPatch } from "@/types";
+import type { CompareMode, FitMode, Replacement, ReplacementPatch, TextBox, TextBoxPatch } from "@/types";
 
 /** 原地对比模式的状态(由 App 持有) */
 export interface CompareView {
@@ -27,6 +27,21 @@ export interface CompareView {
   mode: CompareMode;
   before: string;
   after: Replacement;
+}
+
+/** 预览区的一页;App 按单/双页模式算好可见页集合传入 */
+export interface SpreadPage {
+  /** 文档顺序位置(0 起) */
+  index: number;
+  id: string;
+  /** 页面尺寸(pt) */
+  w: number;
+  h: number;
+  src: string;
+  replacement: Replacement | null;
+  texts: TextBox[];
+  /** 是否为当前选中页(替换图调整工具条只跟随它) */
+  active: boolean;
 }
 
 const MODES: Array<{ value: CompareMode; icon: typeof Columns2 }> = [
@@ -39,19 +54,16 @@ interface WorkspaceProps {
   hasDoc: boolean;
   docLoading: boolean;
   loadingText: string;
-  pageInfo?: PageInfo;
-  previewSrc: string;
-  /** 当前页的替换(含排版参数),无替换为 null */
-  replacement: Replacement | null;
-  /** 当前页的文字框 */
-  textBoxes: TextBox[];
-  selectedTextId: string | null;
-  editingTextId: string | null;
+  /** 可见页集合:单页 1 项,双页 1~2 项 */
+  pages: SpreadPage[];
   zoom: number;
   compare: CompareView | null;
   onZoom: (value: number) => void;
-  /** 调整替换图排版;pushUndo=true 时记入撤销栈 */
-  onAdjust: (patch: ReplacementPatch, pushUndo: boolean) => void;
+  onSelectPage: (index: number) => void;
+  /** 调整指定页的替换图排版;pushUndo=true 时记入撤销栈 */
+  onAdjust: (id: string, patch: ReplacementPatch, pushUndo: boolean) => void;
+  selectedTextId: string | null;
+  editingTextId: string | null;
   onSelectText: (id: string | null) => void;
   onStartEditText: (id: string) => void;
   onCommitText: (id: string, text: string) => void;
@@ -61,23 +73,22 @@ interface WorkspaceProps {
   onCompareMode: (mode: CompareMode) => void;
   onExitCompare: () => void;
   onOpen: () => void;
-  onDropFile: (file: File) => void;
+  /** pageId 指定图片落点页(双页模式按所在卡片);缺省为当前页 */
+  onDropFile: (file: File, pageId?: string) => void;
 }
 
 export default function Workspace({
   hasDoc,
   docLoading,
   loadingText,
-  pageInfo,
-  previewSrc,
-  replacement,
-  textBoxes,
-  selectedTextId,
-  editingTextId,
+  pages,
   zoom,
   compare,
   onZoom,
+  onSelectPage,
   onAdjust,
+  selectedTextId,
+  editingTextId,
   onSelectText,
   onStartEditText,
   onCommitText,
@@ -96,31 +107,37 @@ export default function Workspace({
   const [isAfter, setIsAfter] = useState(false);
   const { t } = useI18n();
   const draggingRef = useRef(false);
-  // 替换图调整:拖动中的实时偏移 / 滑杆中的实时缩放(松手才提交并入撤销栈)
-  const [liveOffset, setLiveOffset] = useState<{ x: number; y: number } | null>(null);
-  const [liveScale, setLiveScale] = useState<number | null>(null);
-  const liveOffsetRef = useRef<{ x: number; y: number } | null>(null);
-  const liveScaleRef = useRef<number | null>(null);
-  const panRef = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+  // 替换图调整:按页面 id 记录拖动中的实时偏移 / 滑杆中的实时缩放(松手才提交并入撤销栈)
+  const [liveOffsets, setLiveOffsets] = useState<Record<string, { x: number; y: number }>>({});
+  const [liveScales, setLiveScales] = useState<Record<string, number>>({});
+  const liveOffsetsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const liveScalesRef = useRef<Record<string, number>>({});
+  const panRef = useRef<{ id: string; px: number; py: number; ox: number; oy: number } | null>(null);
+
+  const activePage = pages.find((p) => p.active) ?? null;
 
   // 生效中的替换参数(合并未提交的实时调整)
-  const effRep: Replacement | null = replacement
-    ? {
-        ...replacement,
-        scale: liveScale ?? replacement.scale,
-        offsetX: liveOffset?.x ?? replacement.offsetX,
-        offsetY: liveOffset?.y ?? replacement.offsetY,
-      }
-    : null;
+  const effRepOf = (p: SpreadPage): Replacement | null =>
+    p.replacement
+      ? {
+          ...p.replacement,
+          scale: liveScales[p.id] ?? p.replacement.scale,
+          offsetX: liveOffsets[p.id]?.x ?? p.replacement.offsetX,
+          offsetY: liveOffsets[p.id]?.y ?? p.replacement.offsetY,
+        }
+      : null;
 
-  // 切页/换图后丢弃未提交的实时调整
+  // 切换可见页集合或某页换图后,丢弃未提交的实时调整
+  const liveResetKey = `${pages.map((p) => p.id).join(",")}|${pages
+    .map((p) => p.replacement?.dataUrl ?? "")
+    .join("|")}`;
   useEffect(() => {
-    setLiveOffset(null);
-    setLiveScale(null);
-    liveOffsetRef.current = null;
-    liveScaleRef.current = null;
+    setLiveOffsets({});
+    setLiveScales({});
+    liveOffsetsRef.current = {};
+    liveScalesRef.current = {};
     panRef.current = null;
-  }, [replacement?.dataUrl]);
+  }, [liveResetKey]);
 
   // 选中文字框后按 Delete/Backspace 删除(编辑态除外)
   useEffect(() => {
@@ -135,7 +152,7 @@ export default function Workspace({
     return () => document.removeEventListener("keydown", onKey);
   }, [selectedTextId, editingTextId, onRemoveText]);
 
-  const selectedTextBox = textBoxes.find((t) => t.id === selectedTextId) ?? null;
+  const selectedTextBox = activePage?.texts.find((t) => t.id === selectedTextId) ?? null;
 
   useEffect(() => {
     const el = areaRef.current;
@@ -148,21 +165,32 @@ export default function Workspace({
     return () => ro.disconnect();
   }, []);
 
-  // 常规预览 & 滑动/切换对比共用:按"适应窗口 × 缩放"计算卡片尺寸
-  const cardStyle = useMemo<CSSProperties | null>(() => {
-    if (!pageInfo || box.w === 0) return null;
+  // 常规预览(单页=双页公式的 1 项特例):按"适应窗口 × 缩放"求公共缩放系数
+  const spreadDimsKey = pages.map((p) => `${p.id}:${p.w}x${p.h}`).join(",");
+  const spreadScale = useMemo(() => {
+    if (pages.length === 0 || box.w === 0) return null;
     const pad = box.w < 640 ? 20 : 56;
-    const fit = Math.min((box.w - pad) / pageInfo.w, (box.h - pad) / pageInfo.h);
+    const gap = pages.length > 1 ? 24 : 0;
+    const totalW = pages.reduce((acc, p) => acc + p.w, 0);
+    const maxH = Math.max(...pages.map((p) => p.h));
+    return Math.min((box.w - pad - gap) / totalW, (box.h - pad) / maxH) * zoom;
+  }, [spreadDimsKey, pages, box, zoom]);
+
+  // 对比视图恒为单页:按当前页尺寸计算卡片
+  const cardStyle = useMemo<CSSProperties | null>(() => {
+    if (!activePage || box.w === 0) return null;
+    const pad = box.w < 640 ? 20 : 56;
+    const fit = Math.min((box.w - pad) / activePage.w, (box.h - pad) / activePage.h);
     const s = fit * zoom;
-    return { width: Math.round(pageInfo.w * s), height: Math.round(pageInfo.h * s) };
-  }, [pageInfo, box, zoom]);
+    return { width: Math.round(activePage.w * s), height: Math.round(activePage.h * s) };
+  }, [activePage, box, zoom]);
 
   // 左右并排:两列各占一半,标签占一行高度
   const sideStyle = useMemo(() => {
-    if (!pageInfo || box.w === 0) return null;
+    if (!activePage || box.w === 0) return null;
     const pad = 56, gap = 24, labelH = 40;
     const availH = box.h - pad - labelH;
-    const ar = pageInfo.w / pageInfo.h;
+    const ar = activePage.w / activePage.h;
     let w = Math.min((box.w - pad - gap) / 2, 560);
     let h = w / ar;
     if (h > availH) {
@@ -170,7 +198,7 @@ export default function Workspace({
       w = h * ar;
     }
     return { w: Math.floor(w), h: Math.floor(h) };
-  }, [pageInfo, box]);
+  }, [activePage, box]);
 
   // 切页后重置对比内部状态
   useEffect(() => {
@@ -232,16 +260,18 @@ export default function Workspace({
     if (file) onDropFile(file);
   };
 
-  /* -- 替换图拖动调位 -- */
-  const handlePanStart = (e: ReactPointerEvent<HTMLDivElement>) => {
+  /* -- 替换图拖动调位(按页面 id 记录实时偏移) -- */
+  const handlePanStart = (p: SpreadPage) => (e: ReactPointerEvent<HTMLDivElement>) => {
     // 点在文字框上时由文字框自己处理
     if ((e.target as HTMLElement).closest("[data-textbox]")) return;
+    if (!p.active) onSelectPage(p.index);
     onSelectText(null);
-    if (!replacement) return;
-    panRef.current = { px: e.clientX, py: e.clientY, ox: replacement.offsetX, oy: replacement.offsetY };
-    liveOffsetRef.current = { x: replacement.offsetX, y: replacement.offsetY };
+    if (!p.replacement) return;
+    panRef.current = { id: p.id, px: e.clientX, py: e.clientY, ox: p.replacement.offsetX, oy: p.replacement.offsetY };
+    const l = { x: p.replacement.offsetX, y: p.replacement.offsetY };
+    liveOffsetsRef.current = { ...liveOffsetsRef.current, [p.id]: l };
     e.currentTarget.setPointerCapture(e.pointerId);
-    setLiveOffset({ x: replacement.offsetX, y: replacement.offsetY });
+    setLiveOffsets((prev) => ({ ...prev, [p.id]: l }));
   };
   const handlePanMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const p = panRef.current;
@@ -252,33 +282,47 @@ export default function Workspace({
       x: clamp(p.ox + ((e.clientX - p.px) / rect.width) * 2),
       y: clamp(p.oy + ((e.clientY - p.py) / rect.height) * 2),
     };
-    liveOffsetRef.current = next;
-    setLiveOffset(next);
+    liveOffsetsRef.current = { ...liveOffsetsRef.current, [p.id]: next };
+    setLiveOffsets((prev) => ({ ...prev, [p.id]: next }));
   };
   const handlePanEnd = () => {
     const p = panRef.current;
     if (!p) return;
     panRef.current = null;
-    const cur = liveOffsetRef.current;
-    liveOffsetRef.current = null;
+    const cur = liveOffsetsRef.current[p.id];
+    delete liveOffsetsRef.current[p.id];
+    setLiveOffsets((prev) => {
+      if (!(p.id in prev)) return prev;
+      const next = { ...prev };
+      delete next[p.id];
+      return next;
+    });
     if (cur && (cur.x !== p.ox || cur.y !== p.oy)) {
-      onAdjust({ offsetX: cur.x, offsetY: cur.y }, true);
+      onAdjust(p.id, { offsetX: cur.x, offsetY: cur.y }, true);
     }
-    setLiveOffset(null);
   };
 
   /* -- 缩放滑杆提交(松手/失焦才记撤销) -- */
   const commitScale = () => {
-    const cur = liveScaleRef.current;
+    const id = activePage?.id;
+    if (!id) return;
+    const cur = liveScalesRef.current[id];
     if (cur != null) {
-      liveScaleRef.current = null;
-      onAdjust({ scale: cur }, true);
+      delete liveScalesRef.current[id];
+      setLiveScales((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      onAdjust(id, { scale: cur }, true);
     }
-    setLiveScale(null);
   };
 
   const stageCardClass =
     "relative shrink-0 overflow-hidden rounded-md bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.10)] ring-1 ring-slate-900/5";
+
+  const activeEffRep = activePage ? effRepOf(activePage) : null;
 
   return (
     <section
@@ -306,66 +350,89 @@ export default function Workspace({
         </div>
       )}
 
-      {/* 常规预览(有替换图时可拖动调位) */}
-      {hasDoc && !compare && pageInfo && cardStyle && (
-        <div
-          className={cn(
-            stageCardClass,
-            replacement && "cursor-grab touch-none active:cursor-grabbing",
-            dropHint === "image" && "outline-3 outline-dashed -outline-offset-2 outline-blue-600"
-          )}
-          style={cardStyle}
-          onPointerDown={handlePanStart}
-          onPointerMove={handlePanMove}
-          onPointerUp={handlePanEnd}
-          onPointerCancel={handlePanEnd}
-        >
-          {effRep ? (
-            <div className="absolute inset-0 overflow-hidden">
-              <ReplacedImage pageW={pageInfo.w} pageH={pageInfo.h} rep={effRep} />
-            </div>
-          ) : (
-            previewSrc && (
-              <img
-                src={previewSrc}
-                alt="页面预览"
-                className="block h-full w-full select-none"
-                draggable={false}
-              />
-            )
-          )}
-          <TextBoxLayer
-            boxes={textBoxes}
-            interactive
-            selectedId={selectedTextId}
-            editingId={editingTextId}
-            onSelect={onSelectText}
-            onStartEdit={onStartEditText}
-            onEditCommit={onCommitText}
-            onMove={onMoveText}
-          />
-          {dropHint === "image" && (
-            <div className="absolute inset-0 grid place-items-center bg-blue-600/10">
-              <span className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.replace")}</span>
-            </div>
-          )}
-          {dropHint === "pdf" && (
-            <div className="absolute inset-0 grid place-items-center bg-slate-900/10">
-              <span className="rounded-full bg-slate-900/85 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.openPdf")}</span>
-            </div>
-          )}
+      {/* 常规预览:单页或对页并排(有替换图时可拖动调位,点另一页即选中) */}
+      {hasDoc && !compare && pages.length > 0 && spreadScale != null && (
+        <div className="flex items-center justify-center" style={{ gap: pages.length > 1 ? 24 : 0 }}>
+          {pages.map((p) => {
+            const effRep = effRepOf(p);
+            return (
+              <div
+                key={p.id}
+                data-page-index={p.index}
+                data-active={p.active ? "true" : "false"}
+                className={cn(
+                  stageCardClass,
+                  p.replacement ? "cursor-grab touch-none active:cursor-grabbing" : !p.active && "cursor-pointer",
+                  dropHint === "image" && "outline-3 outline-dashed -outline-offset-2 outline-blue-600"
+                )}
+                style={{ width: Math.round(p.w * spreadScale), height: Math.round(p.h * spreadScale) }}
+                onPointerDown={handlePanStart(p)}
+                onPointerMove={handlePanMove}
+                onPointerUp={handlePanEnd}
+                onPointerCancel={handlePanEnd}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDropHint(null);
+                  const file = e.dataTransfer.files[0];
+                  if (file) onDropFile(file, p.id);
+                }}
+              >
+                {effRep ? (
+                  <div className="absolute inset-0 overflow-hidden">
+                    <ReplacedImage pageW={p.w} pageH={p.h} rep={effRep} />
+                  </div>
+                ) : (
+                  p.src && (
+                    <img
+                      src={p.src}
+                      alt="页面预览"
+                      className="block h-full w-full select-none"
+                      draggable={false}
+                    />
+                  )
+                )}
+                <TextBoxLayer
+                  boxes={p.texts}
+                  interactive
+                  selectedId={selectedTextId}
+                  editingId={editingTextId}
+                  onSelect={(id) => {
+                    if (!p.active) onSelectPage(p.index);
+                    onSelectText(id);
+                  }}
+                  onStartEdit={(id) => {
+                    if (!p.active) onSelectPage(p.index);
+                    onStartEditText(id);
+                  }}
+                  onEditCommit={onCommitText}
+                  onMove={onMoveText}
+                />
+                {dropHint === "image" && (
+                  <div className="absolute inset-0 grid place-items-center bg-blue-600/10">
+                    <span className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.replace")}</span>
+                  </div>
+                )}
+                {dropHint === "pdf" && (
+                  <div className="absolute inset-0 grid place-items-center bg-slate-900/10">
+                    <span className="rounded-full bg-slate-900/85 px-4 py-1.5 text-sm font-medium text-white shadow-lg">{t("drop.openPdf")}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* 替换图调整工具条 */}
-      {hasDoc && !compare && replacement && (
+      {/* 替换图调整工具条(跟随当前选中页) */}
+      {hasDoc && !compare && activePage && activeEffRep && (
         <div className="absolute bottom-4 left-1/2 z-[5] flex max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-2 rounded-xl border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
           <ToggleGroup
             type="single"
             variant="outline"
-            value={replacement.fit}
+            value={activeEffRep.fit}
             onValueChange={(v) => {
-              if (v) onAdjust({ fit: v as FitMode }, true);
+              if (v) onAdjust(activePage.id, { fit: v as FitMode }, true);
             }}
             className="gap-0 rounded-lg bg-slate-100 p-0.5"
           >
@@ -391,22 +458,22 @@ export default function Workspace({
               min={0.5}
               max={3}
               step={0.05}
-              value={[effRep?.scale ?? 1]}
+              value={[activeEffRep.scale]}
               onValueChange={(v) => {
-                liveScaleRef.current = v[0];
-                setLiveScale(v[0]);
+                liveScalesRef.current = { ...liveScalesRef.current, [activePage.id]: v[0] };
+                setLiveScales((prev) => ({ ...prev, [activePage.id]: v[0] }));
               }}
               onValueCommit={commitScale}
               className="w-28"
             />
             <span className="w-10 text-xs text-slate-700 tabular-nums">
-              {Math.round((effRep?.scale ?? 1) * 100)}%
+              {Math.round(activeEffRep.scale * 100)}%
             </span>
           </div>
           <button
             data-action="adjust-reset"
             className="cursor-pointer text-xs text-slate-500 hover:text-slate-900"
-            onClick={() => onAdjust({ fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
+            onClick={() => onAdjust(activePage.id, { fit: "contain", scale: 1, offsetX: 0, offsetY: 0 }, true)}
           >{t("adjust.reset")}</button>
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
           <span className="text-xs text-slate-400">{t("adjust.hint")}</span>
@@ -414,7 +481,7 @@ export default function Workspace({
       )}
 
       {/* 原地对比:滑动 */}
-      {compare && compare.mode === "slider" && cardStyle && pageInfo && (
+      {compare && compare.mode === "slider" && cardStyle && activePage && (
         <div
           className="relative cursor-ew-resize touch-none overflow-hidden rounded-md bg-white shadow-[0_1px_2px_rgba(16,24,40,0.06),0_8px_24px_rgba(16,24,40,0.10)] ring-1 ring-slate-900/5 select-none"
           style={cardStyle}
@@ -427,8 +494,8 @@ export default function Workspace({
             draggable={false}
           />
           <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${pos}%)` }}>
-            <ReplacedImage pageW={pageInfo.w} pageH={pageInfo.h} rep={compare.after} />
-            <TextBoxLayer boxes={textBoxes} />
+            <ReplacedImage pageW={activePage.w} pageH={activePage.h} rep={compare.after} />
+            <TextBoxLayer boxes={activePage.texts} />
           </div>
           <span className="pointer-events-none absolute top-3 left-3 rounded-full bg-slate-900/75 px-2.5 py-0.5 text-[11.5px] font-semibold text-white backdrop-blur">
             {t("cmp.corner.before")}
@@ -446,7 +513,7 @@ export default function Workspace({
       )}
 
       {/* 原地对比:切换查看 */}
-      {compare && compare.mode === "toggle" && cardStyle && pageInfo && (
+      {compare && compare.mode === "toggle" && cardStyle && activePage && (
         <div className={stageCardClass} style={cardStyle}>
           <img
             src={compare.before}
@@ -459,8 +526,8 @@ export default function Workspace({
             className="absolute inset-0 transition-opacity duration-150"
             style={{ opacity: isAfter ? 1 : 0 }}
           >
-            <ReplacedImage pageW={pageInfo.w} pageH={pageInfo.h} rep={compare.after} />
-            <TextBoxLayer boxes={textBoxes} />
+            <ReplacedImage pageW={activePage.w} pageH={activePage.h} rep={compare.after} />
+            <TextBoxLayer boxes={activePage.texts} />
           </div>
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-0.5 rounded-full bg-slate-900/85 p-1 backdrop-blur">
             <button
@@ -511,7 +578,7 @@ export default function Workspace({
                   className="absolute inset-0 h-full w-full bg-white object-contain"
                   draggable={false}
                 />
-                {kind === "after" && <TextBoxLayer boxes={textBoxes} />}
+                {kind === "after" && <TextBoxLayer boxes={activePage?.texts ?? []} />}
               </div>
             </div>
           ))}

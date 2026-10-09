@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Columns2,
   Download,
   FolderOpen,
@@ -6,6 +7,7 @@ import {
   ImagePlus,
   Languages,
   Plus,
+  RectangleVertical,
   RotateCcw,
   Trash2,
   Type,
@@ -25,8 +27,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
+import type { ViewMode } from "@/types";
 
 interface IconActionProps {
   /** 稳定的机器可读标识,供 agent 通过 [data-action] 定位 */
@@ -72,6 +76,9 @@ interface TopBarProps {
   hasEdits: boolean;
   /** 当前页码(1 起),用于删除确认文案 */
   currentPage: number;
+  /** 预览视图模式:单页 / 双页并排 */
+  viewMode: ViewMode;
+  onViewMode: (value: ViewMode) => void;
   onOpen: () => void;
   onAddPage: () => void;
   onAddText: () => void;
@@ -92,6 +99,8 @@ export default function TopBar({
   canDeletePage,
   hasEdits,
   currentPage,
+  viewMode,
+  onViewMode,
   onOpen,
   onAddPage,
   onAddText,
@@ -275,6 +284,38 @@ export default function TopBar({
           onClick={onCompare}
           disabled={!canCompare}
         />
+      </Group>
+
+      <Group>
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(v) => {
+            if (v) onViewMode(v as ViewMode);
+          }}
+          disabled={!hasDoc}
+          className="gap-0 rounded-lg bg-slate-100 p-0.5"
+        >
+          {/* 注意:ToggleGroupItem 外包 Tooltip 会用 data-state="closed" 覆盖选中态,故此处用 title */}
+          <ToggleGroupItem
+            value="single"
+            data-action="view-single"
+            aria-label={t("topbar.viewSingle")}
+            title={`${t("topbar.viewSingle")} · ${t("topbar.viewSingle.hint")}`}
+            className="size-7 cursor-pointer rounded-md border-none data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+          >
+            <RectangleVertical className="size-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="double"
+            data-action="view-double"
+            aria-label={t("topbar.viewDouble")}
+            title={`${t("topbar.viewDouble")} · ${t("topbar.viewDouble.hint")}`}
+            className="size-7 cursor-pointer rounded-md border-none data-[state=on]:bg-white data-[state=on]:text-slate-900 data-[state=on]:shadow-sm"
+          >
+            <BookOpen className="size-4" />
+          </ToggleGroupItem>
+        </ToggleGroup>
       </Group>
 
       <Group>
